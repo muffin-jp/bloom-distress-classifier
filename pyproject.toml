@@ -1,0 +1,49 @@
+[project]
+name = "bloom-distress-classifier"
+version = "0.1.0"
+description = "Distilling Bloom's LLM distress classifier into a small, explainable, threshold-tuned model"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.9",
+    "numpy>=1.26",
+    "scikit-learn>=1.5",
+]
+
+[project.optional-dependencies]
+# The sentence-transformer that turns text into the 384-d features. Heavy
+# (torch), and only needed to embed — the schema, the splits, and their tests
+# never import it. Mirrors bloom-langgraph's `rag` extra for the same reason.
+embed = ["sentence-transformers>=3.0"]
+# The teacher (baseline 4) and the milestone-2 label proposals.
+teacher = ["anthropic>=0.69"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "ruff>=0.7",
+    "pyright>=1.1.380",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dc"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "W"]
+
+[tool.pyright]
+pythonVersion = "3.11"
+typeCheckingMode = "strict"
+include = ["src", "scripts", "tests"]
+reportMissingTypeStubs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
