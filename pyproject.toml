@@ -16,7 +16,9 @@ dependencies = [
 # never import it. Mirrors bloom-langgraph's `rag` extra for the same reason.
 embed = ["sentence-transformers>=3.0"]
 # The teacher (baseline 4) and the milestone-2 label proposals.
-teacher = ["anthropic>=0.69"]
+teacher = [
+    "anthropic>=0.69",
+]
 
 [dependency-groups]
 dev = [
@@ -38,6 +40,13 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "W"]
+
+[tool.ruff.lint.per-file-ignores]
+# Prompt text is product content: copied verbatim from production or written to
+# be read by a model. Reflowing it would change what is sent. Same convention as
+# bloom-langgraph's app/prompts/*.py.
+"src/dc/teacher.py" = ["E501"]
+"scripts/generate_candidates.py" = ["E501"]
 
 [tool.pyright]
 pythonVersion = "3.11"
