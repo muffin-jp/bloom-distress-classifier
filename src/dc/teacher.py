@@ -62,11 +62,19 @@ PRODUCTION_SCHEMA: dict[str, object] = {
     "additionalProperties": False,
 }
 
+# No `minimum`/`maximum`: structured outputs rejects range keywords on a number
+# ("For 'number' type, properties maximum, minimum are not supported"). The
+# range is stated in the field description instead, and `parse_reply` clamps
+# whatever comes back — so the bound is enforced where it actually holds, in
+# code, rather than in a schema keyword the API ignores.
 CONFIDENCE_SCHEMA: dict[str, object] = {
     "type": "object",
     "properties": {
         "distress": {"type": "boolean"},
-        "confidence": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "confidence": {
+            "type": "number",
+            "description": "How confident you are in this answer, from 0.0 to 1.0.",
+        },
     },
     "required": ["distress", "confidence"],
     "additionalProperties": False,

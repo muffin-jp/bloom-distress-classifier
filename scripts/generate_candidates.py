@@ -34,6 +34,7 @@ from typing import Any, cast
 
 from anthropic import AsyncAnthropic
 
+from dc.api import is_retryable
 from dc.candidates import Candidate, load_candidates
 from dc.env import load_env
 from dc.schema import Provenance
@@ -118,9 +119,14 @@ async def _variants_for(
                     if isinstance(item, str) and item.strip() and len(item.strip()) <= 200:
                         out.append(item.strip())
                 return out
-            except Exception:  # noqa: BLE001 - retry every transient failure alike
+            except Exception as exc:
+                # A malformed request or bad key fails identically every time.
+                # Surface it now rather than backing off against a wall — and
+                # rather than returning [] and quietly producing a short file.
+                if not is_retryable(exc):
+                    raise
                 if attempt == MAX_ATTEMPTS - 1:
-                    print(f"  ! giving up on {seed.id}")
+                    print(f"  ! giving up on {seed.id} after transient failures: {exc}")
                     return []
                 await asyncio.sleep(min(2**attempt + random.random(), 20.0))
     return []

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any, cast
+
 import pytest
 
 from dc.teacher import (
@@ -31,8 +33,24 @@ def test_production_schema_is_exactly_the_production_shape() -> None:
     }
 
 
+def test_no_schema_uses_range_keywords() -> None:
+    """Structured outputs rejects `minimum`/`maximum` on a number.
+
+    The error is only visible at request time — every call in a run fails with
+    "For 'number' type, properties maximum, minimum are not supported" — so the
+    bound is enforced by `parse_reply` clamping instead. This pins that.
+    """
+    banned = {"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum"}
+    for schema in (PRODUCTION_SCHEMA, CONFIDENCE_SCHEMA):
+        properties = cast("dict[str, Any]", schema["properties"])
+        for name, raw in properties.items():
+            spec = cast("dict[str, Any]", raw)
+            assert not (banned & set(spec)), f"{name} uses an unsupported range keyword"
+
+
 def test_confidence_schema_only_adds_confidence() -> None:
-    assert set(CONFIDENCE_SCHEMA["properties"]) == {"distress", "confidence"}  # type: ignore[arg-type]
+    properties = cast("dict[str, Any]", CONFIDENCE_SCHEMA["properties"])
+    assert set(properties) == {"distress", "confidence"}
 
 
 def test_user_message_matches_the_production_wire_format() -> None:
