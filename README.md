@@ -82,16 +82,22 @@ Because a human corrects the teacher before the student ever sees a label, the l
 
 ## Running
 
+Only the two API scripts need a credential; everything else is offline. Either export
+`ANTHROPIC_API_KEY`, or `cp .env.example .env` and fill it in, or run `ant auth login` once and
+leave both unset — the SDK resolves all three.
+
 ```bash
 uv sync
 make seed                   # import the golden cases from ../bloom-langgraph
 make check                  # ruff + pyright strict + pytest
 make stats                  # review queue summary
 
-# These two call the API and cost money. Both print an estimate and send
-# nothing without --yes.
-make propose                # dry-run cost estimate for the teacher pass
-make generate               # dry-run cost estimate for candidate expansion
+# These two call the API and cost money. The bare targets only estimate;
+# the -run targets actually spend. Extra flags go through ARGS.
+make generate               # cost estimate for candidate expansion
+make generate-run           # ...actually spend  (ARGS="--per-seed 8")
+make propose                # cost estimate for the teacher pass
+make propose-run            # ...actually spend  (ARGS="--votes 5")
 
 make review REVIEWER=uv     # the only path from candidate to training data
 make splits                 # (re)build data/splits.json once labelled.jsonl exists

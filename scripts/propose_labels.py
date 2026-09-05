@@ -27,6 +27,7 @@ from pathlib import Path
 from anthropic import AsyncAnthropic
 
 from dc.candidates import Candidate, load_candidates
+from dc.env import load_env
 from dc.teacher import (
     CONFIDENCE_SCHEMA,
     PRODUCTION_SYSTEM_PROMPT,
@@ -124,6 +125,7 @@ def main() -> None:
     parser.add_argument("--yes", action="store_true", help="required to actually spend money")
     parser.add_argument("paths", nargs="*", type=Path)
     args = parser.parse_args()
+    load_env()
 
     drift = check_prompt_drift()
     if drift is not None:

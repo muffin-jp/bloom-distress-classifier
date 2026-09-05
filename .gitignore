@@ -9,6 +9,11 @@ dist/
 # venv / uv
 .venv/
 
+# Secrets: never commit a real key. Keep the template.
+.env
+.env.*
+!.env.example
+
 # tooling caches
 .pytest_cache/
 .ruff_cache/

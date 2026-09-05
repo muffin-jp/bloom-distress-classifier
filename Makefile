@@ -1,4 +1,4 @@
-.PHONY: seed propose generate review stats splits test lint types check
+.PHONY: seed propose propose-run generate generate-run review stats splits test lint types check
 
 # Import the golden cases from the companion repo into data/seed.jsonl.
 # Re-run only if bloom-langgraph's eval dataset changes.
@@ -7,12 +7,21 @@ seed:
 
 # Ask the teacher what it thinks, to order the review queue. Costs money;
 # both scripts refuse to send anything without --yes.
+# `make propose` only prints an estimate. `make propose-run` actually spends.
+# Extra flags go through ARGS, e.g. `make propose-run ARGS="--votes 5"`.
 propose:
-	uv run --extra teacher python scripts/propose_labels.py --dry-run
+	uv run --extra teacher python scripts/propose_labels.py --dry-run $(ARGS)
 
-# Expand the curated taxonomy into more candidates for review. Costs money.
+propose-run:
+	uv run --extra teacher python scripts/propose_labels.py --yes $(ARGS)
+
+# Expand the curated taxonomy into more candidates for review.
+# `make generate` estimates; `make generate-run` spends.
 generate:
-	uv run --extra teacher python scripts/generate_candidates.py --dry-run
+	uv run --extra teacher python scripts/generate_candidates.py --dry-run $(ARGS)
+
+generate-run:
+	uv run --extra teacher python scripts/generate_candidates.py --yes $(ARGS)
 
 # The only path from candidate to training data.
 review:

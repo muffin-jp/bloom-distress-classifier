@@ -35,6 +35,7 @@ from typing import Any, cast
 from anthropic import AsyncAnthropic
 
 from dc.candidates import Candidate, load_candidates
+from dc.env import load_env
 from dc.schema import Provenance
 from dc.teacher import text_from
 
@@ -157,6 +158,7 @@ def main() -> None:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--yes", action="store_true", help="required to actually spend money")
     args = parser.parse_args()
+    load_env()
 
     seeds = load_candidates(args.seeds)
     print(f"{len(seeds)} seed(s) x {args.per_seed} variants = ~{len(seeds) * args.per_seed} rows")
