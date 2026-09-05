@@ -4,7 +4,7 @@ These 44 rows are the release gate already running in the companion repo's CI.
 They arrive here to be *measured against*, never trained on — ``dc.splits``
 forces every one of them into the test set.
 
-Two groups are dropped, and both drops are deliberate (BUILD_SPEC.md §4.1):
+Two groups are dropped, and both drops are deliberate:
 
 * the single ``regeneration`` case, which exercises the reflection loop rather
   than the routing decision; and

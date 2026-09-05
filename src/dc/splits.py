@@ -5,12 +5,12 @@ Two rules decide every row, and both exist to stop a specific, silent failure:
 **Golden rows are always test.** The 44 imported cases are the release gate
 already running in ``bloom-langgraph``'s CI. Training on them would keep that
 gate reporting 100% while measuring nothing, and it would fail green — the worst
-failure mode available (§4.1).
+failure mode available.
 
 **Groups never straddle the line.** A paraphrase shares its source row's
 ``origin_id``; the whole group goes to one side. If a paraphrase of a training
 row landed in test, every test metric would be inflated and the inflation would
-be invisible (§4.6).
+be invisible.
 
 Why a hashed order rather than ``random.shuffle``
 -------------------------------------------------

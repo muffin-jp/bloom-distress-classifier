@@ -13,17 +13,17 @@ Enforced invariants
 1. No unknown fields. A typo'd key is an error, not a silently ignored one.
 2. ``free_text`` is non-empty after stripping and at most 200 characters —
    the API contract, and the only input distribution the classifier ever sees
-   (chip-only requests skip the classifier entirely; BUILD_SPEC.md §1).
+   (chip-only requests skip the classifier entirely).
 3. ``label`` is 0 or 1.
 4. ``label == 1`` **iff** ``category == "distress"``. The two fields are
    deliberately redundant so that a mislabelled row is a *contradiction* the
    loader can catch, rather than a plausible-looking mistake. If a row needs a
-   positive label under another category, that is a spec change (§4.1), not a
+   positive label under another category, that is a design change, not a
    data edit.
 5. ``id`` is unique across the file.
 6. ``origin_id`` resolves to some ``id`` in the file (a row that is its own
    origin points at itself). A dangling origin is how paraphrase groups silently
-   split apart, which is how leakage gets in (§4.6).
+   split apart, which is how leakage gets in.
 """
 
 from __future__ import annotations
@@ -70,7 +70,7 @@ class Category(StrEnum):
     """Stratification key. Carries the error analysis, not just the split.
 
     ``GAME_FRUSTRATION`` is the hard class: violent, hyperbolic writing about a
-    puzzle that is lexically near-identical to genuine distress (§4.3).
+    puzzle that is lexically near-identical to genuine distress.
     """
 
     DISTRESS = "distress"
@@ -82,7 +82,7 @@ class Category(StrEnum):
 
 
 class Provenance(StrEnum):
-    """Where a row came from. Reported as a share in the model card (§4.4)."""
+    """Where a row came from. Reported as a share in the model card."""
 
     SEED = "seed"
     HUMAN_WRITTEN = "human-written"
@@ -111,7 +111,7 @@ class Row(BaseModel):
     label: int = Field(ge=0, le=1)
     category: Category
     provenance: Provenance
-    #: Every row is human-reviewed, including the synthetic ones (§4.4).
+    #: Every row is human-reviewed, including the synthetic ones.
     reviewed_by: str = Field(min_length=1)
     reviewed_on: date
 
@@ -133,7 +133,7 @@ class Row(BaseModel):
 
     @property
     def is_golden(self) -> bool:
-        """True for the imported release-gate cases, which are test-only (§4.1)."""
+        """True for the imported release-gate cases, which are test-only."""
         return self.provenance is Provenance.SEED
 
 

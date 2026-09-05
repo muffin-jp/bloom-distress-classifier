@@ -16,7 +16,7 @@ pytestmark = pytest.mark.skipif(
     not SEED_PATH.exists(), reason="data/seed.jsonl not imported yet (`make seed`)"
 )
 
-#: BUILD_SPEC.md §4.1 — 51 companion cases, minus 1 regeneration and 6 chip-only.
+#: 51 companion cases, minus 1 regeneration and 6 chip-only rows.
 EXPECTED_GOLDEN = 44
 EXPECTED_BY_CATEGORY = {
     Category.DISTRESS: 10,
