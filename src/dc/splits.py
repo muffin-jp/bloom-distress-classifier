@@ -28,7 +28,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Literal, cast
 
@@ -40,7 +40,10 @@ __all__ = [
     "Split",
     "build_assignment",
     "check_leakage",
+    "dominant_category",
+    "drifted_groups",
     "group_rows",
+    "load_all_rows",
     "load_assignment",
     "split_rows",
     "write_assignment",
@@ -60,32 +63,52 @@ SPLITS_PATH = DATA_DIR / "splits.json"
 
 
 def group_rows(rows: list[Row]) -> dict[str, list[Row]]:
-    """Bucket rows by ``origin_id``, rejecting groups that are not homogeneous.
+    """Bucket rows by ``origin_id``. A family always stays whole.
 
-    A paraphrase that changed category or label is no longer a paraphrase — it
-    is a different example and needs its own ``origin_id``. Enforcing that here
-    keeps stratification meaningful: a group has exactly one category, so
-    assigning the group assigns a known amount of each class.
+    Review can make a family heterogeneous: a reviewer looks at a generated
+    variant, decides it drifted from its seed, and gives it a different
+    category. That is review working, not data corruption — and it forces a
+    choice between two things that cannot both hold:
+
+    * a family never straddles the train/test line, and
+    * a family has exactly one category, so stratification is exact.
+
+    The first wins, always. A split family is silent, unfalsifiable metric
+    inflation. Imperfect stratification is a rounding error in a class balance
+    that gets reported anyway. So a drifted family is kept together and
+    stratified by its dominant category; :func:`drifted_groups` reports the
+    drift so it stays visible rather than becoming invisible.
     """
     groups: dict[str, list[Row]] = defaultdict(list)
     for row in rows:
         groups[row.origin_id].append(row)
-
-    for origin_id, members in sorted(groups.items()):
-        categories = {member.category for member in members}
-        if len(categories) > 1:
-            raise ValueError(
-                f"origin group {origin_id!r} spans categories "
-                f"{sorted(c.value for c in categories)}. A row whose category "
-                "differs from its origin is a new example — give it its own origin_id."
-            )
-        labels = {member.label for member in members}
-        if len(labels) > 1:
-            raise ValueError(
-                f"origin group {origin_id!r} spans labels {sorted(labels)}. "
-                "See the note above — relabelling makes it a new group."
-            )
     return dict(groups)
+
+
+def dominant_category(members: list[Row]) -> Category:
+    """The category a family is stratified by: most common, ties broken by name.
+
+    Deterministic on purpose — the split is a committed artifact, so the same
+    rows must always produce the same assignment.
+    """
+    counts = Counter(member.category for member in members)
+    top = max(counts.values())
+    return min((c for c, n in counts.items() if n == top), key=lambda c: c.value)
+
+
+def drifted_groups(rows: list[Row]) -> dict[str, list[str]]:
+    """Families whose members disagree about category, after review.
+
+    Not an error. Reported so a reviewer can see which generated variants
+    wandered from their seed, and decide whether the seed's mode needs
+    rewriting.
+    """
+    groups = group_rows(rows)
+    return {
+        origin_id: sorted({member.category.value for member in members})
+        for origin_id, members in sorted(groups.items())
+        if len({member.category for member in members}) > 1
+    }
 
 
 def _group_hash(origin_id: str, salt: str) -> str:
@@ -115,7 +138,7 @@ def build_assignment(
         if any(member.is_golden for member in members):
             test_groups.add(origin_id)
         else:
-            candidates[members[0].category].append(origin_id)
+            candidates[dominant_category(members)].append(origin_id)
 
     for _category, origin_ids in sorted(candidates.items()):
         ordered = sorted(origin_ids, key=lambda oid: _group_hash(oid, salt))
@@ -169,6 +192,13 @@ def check_leakage(rows: list[Row], assignment: dict[str, Split]) -> list[str]:
             "report 100% while measuring nothing."
         )
 
+    if not any(row.is_golden for row in rows):
+        problems.append(
+            "no golden rows in the dataset. The 44 imported release-gate cases "
+            "must be present and in test; without them the golden-row check "
+            "above passes vacuously and the gate measures nothing."
+        )
+
     for split in ("train", "test"):
         if not any(value == split for value in assignment.values()):
             problems.append(f"the {split!r} split is empty")
@@ -204,14 +234,38 @@ def load_assignment(path: Path = SPLITS_PATH) -> dict[str, Split]:
     return assignment
 
 
-def _dataset_path() -> Path:
-    """Prefer the full labelled set; fall back to the seed while it is being built."""
-    return DATASET_PATH if DATASET_PATH.exists() else SEED_PATH
+def load_all_rows(seed_path: Path = SEED_PATH, dataset_path: Path = DATASET_PATH) -> list[Row]:
+    """The whole dataset: the imported golden cases plus the reviewed rows.
+
+    The two files are kept apart for good reasons — ``seed.jsonl`` is an
+    immutable import from the companion repo, ``labelled.jsonl`` is review
+    output that grows — but every consumer needs both. Reading only one is how
+    the golden cases disappeared from the split without anything failing:
+    ``check_leakage`` reported "all golden rows are in test" and it was true,
+    because there were none. A guarantee that passes vacuously is worse than one
+    that fails, so the merge lives here rather than in each caller.
+    """
+    rows: list[Row] = []
+    if seed_path.exists():
+        rows.extend(load_dataset(seed_path))
+    if dataset_path.exists():
+        rows.extend(load_dataset(dataset_path))
+    if not rows:
+        raise ValueError(
+            f"No dataset found. Expected {seed_path.name} (run `make seed`) "
+            f"and/or {dataset_path.name} (run `make review`)."
+        )
+    duplicates = [item for item, n in Counter(row.id for row in rows).items() if n > 1]
+    if duplicates:
+        raise ValueError(
+            f"id(s) {sorted(duplicates)} appear in both {seed_path.name} and "
+            f"{dataset_path.name}. The golden cases must not be re-reviewed."
+        )
+    return rows
 
 
 def main() -> None:
-    path = _dataset_path()
-    rows = load_dataset(path)
+    rows = load_all_rows()
     assignment = build_assignment(rows)
 
     if all(row.is_golden for row in rows):
@@ -219,11 +273,17 @@ def main() -> None:
         # row is test-only and there is nothing to train on. Refuse to write a
         # degenerate splits.json rather than commit one that means nothing.
         print(
-            f"{path.name} contains only golden rows, so the split is all-test and "
-            "there is no train set yet. Build data/labelled.jsonl (milestone 2), "
+            "The dataset contains only golden rows, so the split is all-test and "
+            "there is no train set yet. Build data/labelled.jsonl via `make review`, "
             "then re-run. Nothing written."
         )
         raise SystemExit(1)
+
+    drifted = drifted_groups(rows)
+    if drifted:
+        print(f"{len(drifted)} family/families diverged during review (kept together):")
+        for origin_id, categories in list(drifted.items())[:10]:
+            print(f"  {origin_id}: {categories}")
 
     problems = check_leakage(rows, assignment)
     if problems:
@@ -234,7 +294,7 @@ def main() -> None:
     write_assignment(assignment)
     n_test = sum(1 for value in assignment.values() if value == "test")
     n_golden = sum(1 for row in rows if row.is_golden)
-    print(f"Read {len(rows)} row(s) from {path.name}.")
+    print(f"Read {len(rows)} row(s) ({n_golden} golden + {len(rows) - n_golden} reviewed).")
     print(f"Wrote {SPLITS_PATH.name}: {len(assignment) - n_test} train / {n_test} test.")
     print(f"  of which {n_golden} golden row(s), all in test.")
 
