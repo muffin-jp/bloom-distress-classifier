@@ -14,7 +14,7 @@ from collections import Counter
 import pytest
 
 from dc.candidates import load_candidates
-from dc.schema import Category
+from dc.schema import Category, load_dataset
 from dc.splits import DATA_DIR
 
 CURATED = DATA_DIR / "candidates" / "curated.jsonl"
@@ -36,10 +36,23 @@ def test_every_candidate_declares_a_parseable_mode() -> None:
         assert MODE_RE.match(candidate.note), f"{candidate.id}: bad note {candidate.note!r}"
 
 
-def test_no_teacher_votes_are_baked_into_the_pack() -> None:
-    # The pack ships with the author's intent only. Teacher votes are recorded
-    # by propose_labels.py; a hand-written vote would be a fabricated signal.
-    assert all(c.teacher_votes == () for c in load_candidates(CURATED))
+def test_the_pack_is_candidates_not_training_data() -> None:
+    """The one-way door, enforced at the file level.
+
+    A candidate file must not be loadable as a dataset: it carries proposed
+    labels, and the only way to a real label is review.
+    """
+    with pytest.raises(ValueError):
+        load_dataset(CURATED)
+
+
+def test_teacher_votes_are_all_or_nothing() -> None:
+    # propose_labels writes votes back into the pack, so votes here are expected
+    # once it has run. What must not happen is a half-finished pass leaving some
+    # rows scored and others not — that would silently reorder the review queue
+    # by how far a crashed run got.
+    counts = {len(c.teacher_votes) for c in load_candidates(CURATED)}
+    assert len(counts) == 1, f"mixed vote counts across the pack: {sorted(counts)}"
 
 
 def test_matched_pairs_are_actually_matched() -> None:
