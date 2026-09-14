@@ -1,4 +1,4 @@
-.PHONY: seed propose propose-run generate generate-run review stats splits vendor-model baselines train test lint types check
+.PHONY: seed propose propose-run generate generate-run review stats splits vendor-model baselines train bench test lint types check
 
 # Import the golden cases from the companion repo into data/seed.jsonl.
 # Re-run only if bloom-langgraph's eval dataset changes.
@@ -50,6 +50,11 @@ baselines:
 # so the artifact's provenance records a clean commit.
 train:
 	uv run --extra embed python -m dc.train
+
+# Latency snapshot to reports/latency.md. Local path only by default; add
+# ARGS="--llm-calls 20 --yes" to time real production calls (costs money).
+bench:
+	uv run --extra embed --extra teacher python scripts/bench_latency.py $(ARGS)
 
 test:
 	uv run pytest -q
