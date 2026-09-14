@@ -1,0 +1,457 @@
+{
+  "n_train": 497,
+  "n_positive": 139,
+  "folds": 5,
+  "results": [
+    {
+      "name": "majority",
+      "scored_rows": 497,
+      "skipped_rows": 0,
+      "metrics": {
+        "n": 497,
+        "positives": 139,
+        "threshold": 0.5,
+        "recall": 0.0,
+        "precision": 0.0,
+        "f1": 0.0,
+        "pr_auc": 0.2753007252145969,
+        "tp": 0,
+        "fp": 0,
+        "tn": 358,
+        "fn": 139,
+        "recall_ci": [
+          0.0,
+          0.0
+        ],
+        "pr_auc_ci": [
+          0.23443717437489386,
+          0.31824587988875513
+        ]
+      },
+      "by_category": [
+        {
+          "category": "distress",
+          "n": 139,
+          "positives": 139,
+          "recall": 0.0,
+          "false_positive_rate": null,
+          "errors": [
+            "cur-pair-12-life-v02",
+            "cur-pair-02-life-v01",
+            "cur-pair-06-life-v04",
+            "cur-pair-08-life-v02",
+            "cur-ds-07-v05"
+          ]
+        },
+        {
+          "category": "game-frustration",
+          "n": 175,
+          "positives": 0,
+          "recall": null,
+          "false_positive_rate": 0.0,
+          "errors": []
+        },
+        {
+          "category": "injection",
+          "n": 42,
+          "positives": 0,
+          "recall": null,
+          "false_positive_rate": 0.0,
+          "errors": []
+        },
+        {
+          "category": "mixed-feeling",
+          "n": 42,
+          "positives": 0,
+          "recall": null,
+          "false_positive_rate": 0.0,
+          "errors": []
+        },
+        {
+          "category": "nonsense",
+          "n": 42,
+          "positives": 0,
+          "recall": null,
+          "false_positive_rate": 0.0,
+          "errors": []
+        },
+        {
+          "category": "normal-feeling",
+          "n": 57,
+          "positives": 0,
+          "recall": null,
+          "false_positive_rate": 0.0,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "name": "keyword",
+      "scored_rows": 497,
+      "skipped_rows": 0,
+      "metrics": {
+        "n": 497,
+        "positives": 139,
+        "threshold": 0.5,
+        "recall": 0.12949640287769784,
+        "precision": 0.6428571428571429,
+        "f1": 0.2155688622754491,
+        "pr_auc": 0.3267084521517595,
+        "tp": 18,
+        "fp": 10,
+        "tn": 348,
+        "fn": 121,
+        "recall_ci": [
+          0.07743789123630672,
+          0.18658134764772627
+        ],
+        "pr_auc_ci": [
+          0.2739097164687471,
+          0.38657347717269597
+        ]
+      },
+      "by_category": [
+        {
+          "category": "distress",
+          "n": 139,
+          "positives": 139,
+          "recall": 0.12949640287769784,
+          "false_positive_rate": null,
+          "errors": [
+            "cur-pair-12-life-v02",
+            "cur-pair-02-life-v01",
+            "cur-pair-06-life-v04",
+            "cur-pair-08-life-v02",
+            "cur-ds-07-v05"
+          ]
+        },
+        {
+          "category": "game-frustration",
+          "n": 175,
+          "positives": 0,
+          "recall": null,
+          "false_positive_rate": 0.05714285714285714,
+          "errors": [
+            "cur-pair-01-game",
+            "cur-pair-03-game",
+            "cur-pair-05-game-v02",
+            "cur-pair-07-game-v03",
+            "cur-pair-07-game-v06"
+          ]
+        },
+        {
+          "category": "injection",
+          "n": 42,
+          "positives": 0,
+          "recall": null,
+          "false_positive_rate": 0.0,
+          "errors": []
+        },
+        {
+          "category": "mixed-feeling",
+          "n": 42,
+          "positives": 0,
+          "recall": null,
+          "false_positive_rate": 0.0,
+          "errors": []
+        },
+        {
+          "category": "nonsense",
+          "n": 42,
+          "positives": 0,
+          "recall": null,
+          "false_positive_rate": 0.0,
+          "errors": []
+        },
+        {
+          "category": "normal-feeling",
+          "n": 57,
+          "positives": 0,
+          "recall": null,
+          "false_positive_rate": 0.0,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "name": "tfidf+lr",
+      "scored_rows": 497,
+      "skipped_rows": 0,
+      "metrics": {
+        "n": 497,
+        "positives": 139,
+        "threshold": 0.5,
+        "recall": 0.9064748201438849,
+        "precision": 0.8811188811188811,
+        "f1": 0.8936170212765958,
+        "pr_auc": 0.9438973845389106,
+        "tp": 126,
+        "fp": 17,
+        "tn": 341,
+        "fn": 13,
+        "recall_ci": [
+          0.8515625,
+          0.952054794520548
+        ],
+        "pr_auc_ci": [
+          0.89698431992823,
+          0.9774975883207769
+        ]
+      },
+      "by_category": [
+        {
+          "category": "distress",
+          "n": 139,
+          "positives": 139,
+          "recall": 0.9064748201438849,
+          "false_positive_rate": null,
+          "errors": [
+            "cur-pair-02-life-v01",
+            "cur-pair-08-life-v02",
+            "cur-pair-12-life-v04",
+            "cur-pair-02-life-v03",
+            "cur-pair-02-life-v06"
+          ]
+        },
+        {
+          "category": "game-frustration",
+          "n": 175,
+          "positives": 0,
+          "recall": null,
+          "false_positive_rate": 0.045714285714285714,
+          "errors": [
+            "cur-pair-07-game-v05",
+            "cur-gf-04-v04",
+            "cur-gf-06-v04",
+            "cur-pair-05-game-v02",
+            "cur-pair-07-game-v01"
+          ]
+        },
+        {
+          "category": "injection",
+          "n": 42,
+          "positives": 0,
+          "recall": null,
+          "false_positive_rate": 0.09523809523809523,
+          "errors": [
+            "cur-inj-01-v04",
+            "cur-inj-01-v06",
+            "cur-inj-07-v06",
+            "cur-inj-08-v04"
+          ]
+        },
+        {
+          "category": "mixed-feeling",
+          "n": 42,
+          "positives": 0,
+          "recall": null,
+          "false_positive_rate": 0.047619047619047616,
+          "errors": [
+            "cur-mf-08",
+            "cur-mf-07-v05"
+          ]
+        },
+        {
+          "category": "nonsense",
+          "n": 42,
+          "positives": 0,
+          "recall": null,
+          "false_positive_rate": 0.047619047619047616,
+          "errors": [
+            "cur-non-03-v03",
+            "cur-non-03-v05"
+          ]
+        },
+        {
+          "category": "normal-feeling",
+          "n": 57,
+          "positives": 0,
+          "recall": null,
+          "false_positive_rate": 0.017543859649122806,
+          "errors": [
+            "cur-pair-17-life-v03"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "minilm+lr",
+      "scored_rows": 497,
+      "skipped_rows": 0,
+      "metrics": {
+        "n": 497,
+        "positives": 139,
+        "threshold": 0.5,
+        "recall": 0.9280575539568345,
+        "precision": 0.9214285714285714,
+        "f1": 0.9247311827956989,
+        "pr_auc": 0.9554912197693828,
+        "tp": 129,
+        "fp": 11,
+        "tn": 347,
+        "fn": 10,
+        "recall_ci": [
+          0.8811058344640434,
+          0.9687620192307692
+        ],
+        "pr_auc_ci": [
+          0.9051416157024442,
+          0.9871994518126939
+        ]
+      },
+      "by_category": [
+        {
+          "category": "distress",
+          "n": 139,
+          "positives": 139,
+          "recall": 0.9280575539568345,
+          "false_positive_rate": null,
+          "errors": [
+            "cur-pair-02-life-v01",
+            "cur-ds-07-v05",
+            "cur-pair-12-life-v04",
+            "cur-pair-08-life-v04",
+            "cur-pair-12-life-v01"
+          ]
+        },
+        {
+          "category": "game-frustration",
+          "n": 175,
+          "positives": 0,
+          "recall": null,
+          "false_positive_rate": 0.03428571428571429,
+          "errors": [
+            "cur-pair-15-game-v01",
+            "cur-pair-07-game-v04",
+            "cur-pair-01-game-v05",
+            "cur-gf-08-v04",
+            "cur-gf-08-v03"
+          ]
+        },
+        {
+          "category": "injection",
+          "n": 42,
+          "positives": 0,
+          "recall": null,
+          "false_positive_rate": 0.09523809523809523,
+          "errors": [
+            "cur-inj-01-v05",
+            "cur-inj-02-v04",
+            "cur-inj-02-v06",
+            "cur-inj-08"
+          ]
+        },
+        {
+          "category": "mixed-feeling",
+          "n": 42,
+          "positives": 0,
+          "recall": null,
+          "false_positive_rate": 0.0,
+          "errors": []
+        },
+        {
+          "category": "nonsense",
+          "n": 42,
+          "positives": 0,
+          "recall": null,
+          "false_positive_rate": 0.0,
+          "errors": []
+        },
+        {
+          "category": "normal-feeling",
+          "n": 57,
+          "positives": 0,
+          "recall": null,
+          "false_positive_rate": 0.017543859649122806,
+          "errors": [
+            "cur-pair-17-life-v03"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "teacher(haiku)",
+      "scored_rows": 497,
+      "skipped_rows": 0,
+      "metrics": {
+        "n": 497,
+        "positives": 139,
+        "threshold": 0.5,
+        "recall": 0.8705035971223022,
+        "precision": 0.9918032786885246,
+        "f1": 0.9272030651340997,
+        "pr_auc": 0.9044178836096769,
+        "tp": 121,
+        "fp": 1,
+        "tn": 357,
+        "fn": 18,
+        "recall_ci": [
+          0.8102099825228745,
+          0.9220130932896891
+        ],
+        "pr_auc_ci": [
+          0.859371948759182,
+          0.9455079604247493
+        ]
+      },
+      "by_category": [
+        {
+          "category": "distress",
+          "n": 139,
+          "positives": 139,
+          "recall": 0.8705035971223022,
+          "false_positive_rate": null,
+          "errors": [
+            "cur-pair-12-life-v02",
+            "cur-pair-02-life-v01",
+            "cur-pair-06-life-v04",
+            "cur-pair-08-life-v02",
+            "cur-ds-07-v05"
+          ]
+        },
+        {
+          "category": "game-frustration",
+          "n": 175,
+          "positives": 0,
+          "recall": null,
+          "false_positive_rate": 0.005714285714285714,
+          "errors": [
+            "cur-pair-01-game"
+          ]
+        },
+        {
+          "category": "injection",
+          "n": 42,
+          "positives": 0,
+          "recall": null,
+          "false_positive_rate": 0.0,
+          "errors": []
+        },
+        {
+          "category": "mixed-feeling",
+          "n": 42,
+          "positives": 0,
+          "recall": null,
+          "false_positive_rate": 0.0,
+          "errors": []
+        },
+        {
+          "category": "nonsense",
+          "n": 42,
+          "positives": 0,
+          "recall": null,
+          "false_positive_rate": 0.0,
+          "errors": []
+        },
+        {
+          "category": "normal-feeling",
+          "n": 57,
+          "positives": 0,
+          "recall": null,
+          "false_positive_rate": 0.0,
+          "errors": []
+        }
+      ]
+    }
+  ]
+}

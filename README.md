@@ -14,20 +14,49 @@ in-game message and makes no claim about anyone's mental state.
 
 ## Status
 
-Milestone 2 of 8 — dataset tooling and the curated taxonomy. No model yet.
+Milestone 3 of 8 — first results table. Baselines are in; the tuned model is not.
 
 | # | Milestone | State |
 | --- | --- | --- |
 | 1 | Scaffold, strict schema, splits + leakage guards | ✅ |
-| 2 | Dataset to 600+ reviewed rows | 🚧 tooling done, 92 candidates awaiting review |
-| 3 | Baselines 0–3 + the Haiku teacher | — |
+| 2 | Dataset to 600+ reviewed rows | ✅ 688 rows, 191 positive (28%) |
+| 3 | Baselines 0–3 + the Haiku teacher | ✅ |
 | 4 | Training, CV, calibration, ablations | — |
 | 5 | Cost model, threshold fitting, cascade | — |
 | 6 | Single test-set evaluation, bootstrap CIs | — |
 | 7 | Explanations + model card | — |
 | 8 | Integration PR into `bloom-langgraph` | — |
 
-Results table goes here once milestone 6 lands.
+### Baselines — 5-fold CV on train (497 rows, 28% positive)
+
+| Baseline | Recall | Precision | PR-AUC | Missed |
+| --- | --- | --- | --- | --- |
+| majority | 0.00 | 0.00 | 0.28 | 139 |
+| crisis-keyword regex | 0.13 | 0.64 | 0.33 | 121 |
+| TF-IDF + LR | 0.91 | 0.88 | 0.94 | 13 |
+| **MiniLM + LR** | **0.93** | 0.92 | **0.96** | **10** |
+| `claude-haiku-4-5` (production) | 0.87 | 0.99 | 0.90 | 18 |
+
+Three things worth noting.
+
+**The keyword baseline is nearly useless — recall 0.13.** It was written in good
+faith, not as a strawman, and it still misses 121 of 139 distress cases: real phrasing
+varies far more than any hand-written list anticipates. That is the number that
+justifies building a model at all.
+
+**The frozen embedding space does separate the frames.** MiniLM + LR reaches 0.96
+PR-AUC with a 3% false-positive rate on `game-frustration` — the hard class where
+the wording is shared. So a linear probe is enough, and fine-tuning stays in
+reserve rather than being assumed.
+
+**The candidate is ahead of the model it distils** (0.96 vs 0.90 PR-AUC, 10 missed
+vs 18) — which is possible only because a human corrected the teacher before the
+student saw a label.
+
+`reports/baselines.md` carries the per-category breakdown, bootstrap intervals, and
+the caveats these numbers need — chiefly that 86% of the training rows came from a
+generator, so the *ordering* is more trustworthy than the magnitudes. **The test
+split is untouched**; it is spent once, at milestone 6.
 
 ## What is here so far
 
@@ -101,6 +130,9 @@ make propose-run            # ...actually spend  (ARGS="--votes 5")
 
 make review REVIEWER=uv     # the only path from candidate to training data
 make splits                 # (re)build data/splits.json once labelled.jsonl exists
+
+make vendor-model           # one ~90MB download of the pinned MiniLM weights
+make baselines              # baselines 0-4, CV on train  (ARGS="--skip-embedding")
 ```
 
 ## Design

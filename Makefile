@@ -1,4 +1,4 @@
-.PHONY: seed propose propose-run generate generate-run review stats splits test lint types check
+.PHONY: seed propose propose-run generate generate-run review stats splits vendor-model baselines test lint types check
 
 # Import the golden cases from the companion repo into data/seed.jsonl.
 # Re-run only if bloom-langgraph's eval dataset changes.
@@ -34,6 +34,16 @@ stats:
 # Adding rows does not reshuffle existing groups — see src/dc/splits.py.
 splits:
 	uv run python -m dc.splits
+
+# One ~90MB download of the pinned MiniLM weights, needed only for baseline 3
+# and the model itself. Everything else in this repo runs offline without it.
+vendor-model:
+	uv run --extra embed python -m dc.features
+
+# Baselines 0-4, 5-fold CV on train. Never touches the test split.
+# Drop the extra (or pass --skip-embedding) to run without the embedder.
+baselines:
+	uv run --extra embed python scripts/run_baselines.py $(ARGS)
 
 test:
 	uv run pytest -q
