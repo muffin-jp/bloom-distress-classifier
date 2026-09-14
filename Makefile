@@ -1,4 +1,4 @@
-.PHONY: seed propose propose-run generate generate-run review stats splits vendor-model baselines test lint types check
+.PHONY: seed propose propose-run generate generate-run review stats splits vendor-model baselines train test lint types check
 
 # Import the golden cases from the companion repo into data/seed.jsonl.
 # Re-run only if bloom-langgraph's eval dataset changes.
@@ -44,6 +44,12 @@ vendor-model:
 # Drop the extra (or pass --skip-embedding) to run without the embedder.
 baselines:
 	uv run --extra embed python scripts/run_baselines.py $(ARGS)
+
+# The train.py spine: select by grouped CV, refit, write artifacts/ and
+# reports/training.*. Never touches the test split. Run after committing source
+# so the artifact's provenance records a clean commit.
+train:
+	uv run --extra embed python -m dc.train
 
 test:
 	uv run pytest -q
