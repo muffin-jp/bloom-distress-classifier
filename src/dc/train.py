@@ -12,13 +12,14 @@ construction rather than avoided by discipline.
 # pyright: reportUnknownMemberType=false, reportUnknownArgumentType=false, reportUnknownVariableType=false
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 import numpy as np
 
 from dc.artifact import ARTIFACT_DIR, dataset_sha256, save, source_commit
 from dc.baselines import KeywordBaseline
+from dc.cascade import fit_cascade
 from dc.features import EMBED_MODEL, EMBED_MODEL_REVISION, Embedder, build_features, feeling_one_hot
 from dc.metrics import pr_auc
 from dc.model import FeatureLayout, fit_model
@@ -48,6 +49,7 @@ def run(
     embedder: Embedder,
     *,
     configs: Sequence[Config],
+    teacher_votes: Mapping[str, Sequence[int]],
     artifact_dir: Path = ARTIFACT_DIR,
     report_dir: Path = REPORT_DIR,
     dataset_files: Sequence[Path] = (),
@@ -90,10 +92,16 @@ def run(
         results, x_text, [row.feeling for row in train], y, folds, seed=seed
     )
 
-    # 6. THRESHOLD — not yet. Operating thresholds come from a stated cost model
-    #    in the next milestone. Until then the artifact records none, and
-    #    dc.artifact.is_servable refuses it: scores without a decision rule just
-    #    invite someone to pick 0.5 at the call site.
+    # 6. THRESHOLD — two cutoffs on the chosen config's out-of-fold scores. Below
+    #    `low` the LLM is skipped, and only below where any distress case scored.
+    #    Above `high` a note goes straight to support; between, the LLM decides as
+    #    it does today. `high` minimises expected cost with a missed crisis at 20x
+    #    an unneeded kind message. "The cascade loses no recall to the LLM" holds
+    #    here by construction, so that check belongs on the test set, not here.
+    cascade = fit_cascade(
+        y, selection.chosen.oof, [teacher_votes.get(row.id, ()) for row in train],
+        ids=[row.id for row in train], texts=[row.free_text for row in train],
+    )  # fmt: skip
 
     # 7. FIT — refit on all of train at the chosen config. The CV models existed
     #    to choose; this one exists to ship.
@@ -107,7 +115,7 @@ def run(
     # 8. SAVE — npz + json, no pickle: the consumer reads data, never runs code.
     summary = summarize(
         train, y, folds=N_FOLDS, seed=seed, keyword_pr_auc=keyword, results=results,
-        selection=selection, probe_config=probe_config, probe=probe,
+        selection=selection, probe_config=probe_config, probe=probe, cascade=cascade,
     )  # fmt: skip
     provenance = {**source_commit(), "dataset_sha256": dataset_sha256(dataset_files)}
     save(model, artifact_metadata(summary, provenance), artifact_dir)
@@ -116,8 +124,9 @@ def run(
 
 
 def main() -> None:
+    from dc.candidates import load_teacher_votes
     from dc.features import load_embedder
-    from dc.report import render_markdown
+    from dc.report import render_cascade_markdown, render_markdown
     from dc.splits import load_all_rows, load_assignment
 
     summary = run(
@@ -125,9 +134,11 @@ def main() -> None:
         load_assignment(),
         load_embedder(),
         configs=grid(),
+        teacher_votes=load_teacher_votes(),
         dataset_files=(SEED_PATH, DATASET_PATH, SPLITS_PATH),
     )
     print(render_markdown(summary))
+    print(render_cascade_markdown(summary))
 
 
 if __name__ == "__main__":

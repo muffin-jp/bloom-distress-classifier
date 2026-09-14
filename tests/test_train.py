@@ -12,12 +12,22 @@ import pytest
 from conftest import make_row
 
 from dc.artifact import is_servable, load
+from dc.cascade import Route, route
 from dc.schema import Category, Feeling, Provenance, Row
 from dc.selection import Config
 from dc.splits import build_assignment
 from dc.train import GateError, run
 
 CONFIGS = [Config(1.0, "none", False), Config(1.0, "none", True)]
+
+
+def votes(rows: Sequence[Row]) -> dict[str, tuple[int, ...]]:
+    """The teacher is right, except that it misses every fifth distress case."""
+    out: dict[str, tuple[int, ...]] = {}
+    for index, row in enumerate(rows):
+        missed = row.label == 1 and index % 5 == 0
+        out[row.id] = (0, 0, 0) if (row.label == 0 or missed) else (1, 1, 1)
+    return out
 
 
 class SpyEmbedder:
@@ -84,6 +94,7 @@ def test_training_never_embeds_a_test_row(tmp_path: Path) -> None:
         assignment,
         spy,
         configs=CONFIGS,
+        teacher_votes=votes(rows),
         artifact_dir=tmp_path / "a",
         report_dir=tmp_path / "r",
     )
@@ -95,19 +106,22 @@ def test_training_never_embeds_a_test_row(tmp_path: Path) -> None:
     assert train_texts <= set(spy.seen)
 
 
-def test_training_writes_an_artifact_that_is_not_yet_servable(tmp_path: Path) -> None:
+def test_training_writes_a_servable_artifact(tmp_path: Path) -> None:
     rows = corpus()
     run(
         rows,
         build_assignment(rows),
         SpyEmbedder(),
         configs=CONFIGS,
+        teacher_votes=votes(rows),
         artifact_dir=tmp_path / "a",
         report_dir=tmp_path / "r",
     )
     artifact = load(tmp_path / "a")
-    assert artifact.metadata["thresholds"] is None
-    assert not is_servable(artifact.metadata)
+    thresholds = artifact.metadata["thresholds"]
+    assert is_servable(artifact.metadata)
+    assert 0.0 <= thresholds["low"] <= thresholds["high"] <= 1.0
+    assert (tmp_path / "r" / "cascade.md").exists()
     assert not artifact.model.layout.include_feeling
     assert (tmp_path / "r" / "training.md").exists()
     assert (tmp_path / "r" / "training.json").exists()
@@ -121,6 +135,7 @@ def test_training_never_ships_the_feeling_shortcut(tmp_path: Path) -> None:
         build_assignment(rows),
         SpyEmbedder(),
         configs=CONFIGS,
+        teacher_votes=votes(rows),
         artifact_dir=tmp_path / "a",
         report_dir=tmp_path / "r",
     )
@@ -138,6 +153,7 @@ def test_training_stops_when_a_keyword_rule_would_do(tmp_path: Path) -> None:
             build_assignment(rows),
             SpyEmbedder(informative=False),
             configs=CONFIGS,
+            teacher_votes=votes(rows),
             artifact_dir=tmp_path / "a",
             report_dir=tmp_path / "r",
         )
@@ -154,6 +170,40 @@ def test_training_refuses_an_unsound_split(tmp_path: Path) -> None:
             assignment,
             SpyEmbedder(),
             configs=CONFIGS,
+            teacher_votes=votes(rows),
+            artifact_dir=tmp_path / "a",
+            report_dir=tmp_path / "r",
+        )
+
+
+def test_no_training_distress_case_would_skip_the_llm(tmp_path: Path) -> None:
+    rows = corpus()
+    assignment = build_assignment(rows)
+    summary = run(
+        rows,
+        assignment,
+        SpyEmbedder(),
+        configs=CONFIGS,
+        teacher_votes=votes(rows),
+        artifact_dir=tmp_path / "a",
+        report_dir=tmp_path / "r",
+    )
+    train = [row for row in rows if assignment[row.id] == "train"]
+    thresholds = summary.cascade.thresholds
+    for row, score_value in zip(train, summary.selection.chosen.oof, strict=True):
+        if row.label == 1:
+            assert route(float(score_value), thresholds) is not Route.SKIP_LLM, row.id
+
+
+def test_training_requires_a_teacher_vote_for_every_training_row(tmp_path: Path) -> None:
+    rows = corpus()
+    with pytest.raises(ValueError, match="no teacher votes"):
+        run(
+            rows,
+            build_assignment(rows),
+            SpyEmbedder(),
+            configs=CONFIGS,
+            teacher_votes={},
             artifact_dir=tmp_path / "a",
             report_dir=tmp_path / "r",
         )
