@@ -14,7 +14,7 @@ in-game message and makes no claim about anyone's mental state.
 
 ## Status
 
-Milestone 4 of 8 — a trained model, not yet servable. Operating thresholds come next.
+Milestone 5 of 8 — a servable model and a fitted cascade. The test set has not been touched yet.
 
 | # | Milestone | State |
 | --- | --- | --- |
@@ -22,7 +22,7 @@ Milestone 4 of 8 — a trained model, not yet servable. Operating thresholds com
 | 2 | Dataset to 600+ reviewed rows | ✅ 688 rows, 191 positive (28%) |
 | 3 | Baselines 0–3 + the Haiku teacher | ✅ |
 | 4 | Training, CV, calibration, ablations | ✅ |
-| 5 | Cost model, threshold fitting, cascade | — |
+| 5 | Cost model, threshold fitting, cascade | ✅ |
 | 6 | Single test-set evaluation, bootstrap CIs | — |
 | 7 | Explanations + model card | — |
 | 8 | Integration PR into `bloom-langgraph` | — |
@@ -90,9 +90,51 @@ of fold: Brier 0.038, ECE 0.054. 72% of rows sit in the two outermost score bins
 the model is close to calibrated. The thin middle bins are where it isn't.
 
 **The artifact.** `artifacts/model.npz` + `model.json`: 385 weights, 3.6KB, no pickle.
-Serving needs numpy only, and it matches scikit-learn to about 1e-7. It is **not
-servable yet**: `thresholds` is `null`, and `dc.artifact.is_servable` refuses the model
-until the cost model sets them.
+Serving needs numpy only, and it matches scikit-learn to about 1e-7. Its operating thresholds come from the cost model below.
+
+### The cascade — `reports/cascade.md`
+
+The model does not replace the LLM. It sits in front of it and picks one of three routes
+for each note:
+
+| Score | Route |
+| --- | --- |
+| p < 0.0181 | **skip the LLM** — straight to encouragement |
+| between | **escalate** — `claude-haiku-4-5` decides, exactly as it does today |
+| p > 0.163 | **support** — straight to the reviewed support message |
+
+A score exactly on a threshold escalates, and so does any score that isn't a finite
+probability. Every way the local model can fail lands on today's behaviour.
+
+**`low` is a safety constraint, not an optimisation.** Skipping the LLM is the only route
+that can add a missed crisis, so `low` sits at half the lowest score any validation
+distress case received. Zero misses on 139 cases is still a finite sample, so the report
+says it the honest way: the true share of distress cases that would skip the LLM is below
+2.1% with 95% confidence. The case that set `low` is an
+indirect disclosure of abuse at home, scored at 0.036: the kind of note a frozen embedding
+under-reads, and the kind the constraint exists to protect.
+
+**`high` is chosen by expected cost, with a missed crisis treated as 20× an unneeded
+support message.** On validation, expected values:
+
+| Policy | Expected recall | Expected false alarms | LLM calls |
+| --- | --- | --- | --- |
+| LLM alone (today) | 0.863 | 1.3 | 100% |
+| **cascade** | 1.000 | 61.0 | 34% |
+
+**Those numbers need two warnings.** First, recall 1.000 describes how the thresholds were
+built, not how they will perform: both were fitted on these same rows. Second, 20:1 sits
+just past a cliff. Above 13.2:1 the cost model sends 40% of all notes
+to support. Below it, `high` would be 0.510, with 4 more expected missed crises and 53
+fewer false alarms. That whole trade rests on **4 labelled-distress notes where the teacher
+voted "not distress" three times out of three**. One of them is work venting, which the
+production prompt explicitly classes as not distress. The report lists all four. Whether
+they are distress, and so whether 20:1 is the right ratio, is a product decision. It was
+not made here.
+
+**Latency** (`make bench`, a snapshot): the local path — embed, score, route — is 4.8 ms at
+p50 on a laptop CPU. The LLM path isn't timed by default because it costs money; the report
+explains how to run it.
 
 ## What is here so far
 
@@ -169,7 +211,8 @@ make splits                 # (re)build data/splits.json once labelled.jsonl exi
 
 make vendor-model           # one ~90MB download of the pinned MiniLM weights
 make baselines              # baselines 0-4, CV on train  (ARGS="--skip-embedding")
-make train                  # select, refit, write artifacts/ and reports/training.*
+make train                  # select, fit thresholds, write artifacts/ and reports/
+make bench                  # latency snapshot  (ARGS="--llm-calls 20 --yes" costs money)
 ```
 
 ## Design

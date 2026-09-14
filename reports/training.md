@@ -89,6 +89,4 @@ Two consequences. Thresholds are fitted empirically on these out-of-fold scores,
 
 ## Artifact
 
-`artifacts/model.npz` + `artifacts/model.json`. **Not servable yet:** no
-operating thresholds have been fitted. Those come from the cost model in the
-next milestone, and `dc.artifact.is_servable` refuses the model until then.
+`artifacts/model.npz` + `artifacts/model.json`, with operating thresholds `low` 0.0181 and `high` 0.163 fitted from the cost model. How they were chosen, and what the cascade would have done on validation, is in `reports/cascade.md`.
