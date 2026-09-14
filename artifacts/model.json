@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "embedder": {
+    "model": "sentence-transformers/all-MiniLM-L6-v2",
+    "revision": "c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+    "dim": 384
+  },
+  "features": {
+    "include_feeling": false,
+    "feelings": [
+      "proud",
+      "relieved",
+      "frustrated",
+      "disappointed",
+      "anxious",
+      "tired",
+      "custom"
+    ],
+    "n_features": 384
+  },
+  "hyperparameters": {
+    "C": 10.0,
+    "class_weight": "balanced",
+    "penalty": "l2",
+    "solver": "lbfgs"
+  },
+  "thresholds": null,
+  "selection": {
+    "rule": "Feeling features ineligible (label leak, see probe); best mean fold PR-AUC; keep configs within 1 SE; lowest Brier among them; ties to smaller C, then no class reweighting.",
+    "cv_pr_auc_mean": 0.9604334785641043,
+    "cv_pr_auc_se": 0.019922120661963964,
+    "folds": 5,
+    "seed": 0
+  },
+  "calibration": {
+    "brier": 0.03823533084696844,
+    "ece": 0.05373004065806391
+  },
+  "provenance": {
+    "commit": "d2274de244571a7c5374dd3a5d71325afcaaaca4",
+    "dirty": true,
+    "dataset_sha256": "a79700a0f570cfa47df73b607c85c59840ea5b2c4e042c5043c07f0257cd05ed",
+    "n_train": 497,
+    "n_positive": 139
+  }
+}

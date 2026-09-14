@@ -14,14 +14,14 @@ in-game message and makes no claim about anyone's mental state.
 
 ## Status
 
-Milestone 3 of 8 — first results table. Baselines are in; the tuned model is not.
+Milestone 4 of 8 — a trained model, not yet servable. Operating thresholds come next.
 
 | # | Milestone | State |
 | --- | --- | --- |
 | 1 | Scaffold, strict schema, splits + leakage guards | ✅ |
 | 2 | Dataset to 600+ reviewed rows | ✅ 688 rows, 191 positive (28%) |
 | 3 | Baselines 0–3 + the Haiku teacher | ✅ |
-| 4 | Training, CV, calibration, ablations | — |
+| 4 | Training, CV, calibration, ablations | ✅ |
 | 5 | Cost model, threshold fitting, cascade | — |
 | 6 | Single test-set evaluation, bootstrap CIs | — |
 | 7 | Explanations + model card | — |
@@ -57,6 +57,42 @@ student saw a label.
 the caveats these numbers need — chiefly that 86% of the training rows came from a
 generator, so the *ordering* is more trustworthy than the magnitudes. **The test
 split is untouched**; it is spent once, at milestone 6.
+
+### Training — `src/dc/train.py`
+
+The spine reads top to bottom as eight steps: load, split, embed, baseline, select,
+threshold, fit, save. Each calls a module and says *why*. After step 2 no test row is
+in scope, and a test fails if one is ever embedded.
+
+**The chip a player picks is a label leak in this dataset, and the model would learn
+it.** Four of the seven feelings carry no distress at all. That comes from how the rows
+were authored, not from anything true about players. Given the chip, the best config
+gains +0.015 PR-AUC in cross-validation. CV rewards the shortcut because the shortcut
+appears in every fold, so CV can't be what rejects it. A counterfactual probe can:
+keep the text of each held-out distress case, change only the chip, and score it again.
+
+| Chip swapped to | Recall before | Recall after |
+| --- | --- | --- |
+| `frustrated` | 0.96 | **0.05** |
+| `proud` | 0.96 | 0.26 |
+| `relieved` | 0.96 | 0.26 |
+| `disappointed` | 0.96 | 0.32 |
+
+A player who picks `frustrated` and then writes a real crisis note would be caught 5% of
+the time. So feeling features are ineligible under the selection rule, which was fixed in
+`dc.selection` before any result existed.
+
+**Selection.** All ten text-only configs land within one standard error of the best
+(0.950–0.962 PR-AUC). The differences between them are fold noise, not evidence. The rule
+takes the lowest Brier score inside that band, **C=10, balanced**, which leaves out
+C=0.01: it ranks almost as well, but its Brier score is six times worse. Calibration out
+of fold: Brier 0.038, ECE 0.054. 72% of rows sit in the two outermost score bins, where
+the model is close to calibrated. The thin middle bins are where it isn't.
+
+**The artifact.** `artifacts/model.npz` + `model.json`: 385 weights, 3.6KB, no pickle.
+Serving needs numpy only, and it matches scikit-learn to about 1e-7. It is **not
+servable yet**: `thresholds` is `null`, and `dc.artifact.is_servable` refuses the model
+until the cost model sets them.
 
 ## What is here so far
 
@@ -133,6 +169,7 @@ make splits                 # (re)build data/splits.json once labelled.jsonl exi
 
 make vendor-model           # one ~90MB download of the pinned MiniLM weights
 make baselines              # baselines 0-4, CV on train  (ARGS="--skip-embedding")
+make train                  # select, refit, write artifacts/ and reports/training.*
 ```
 
 ## Design
