@@ -22,12 +22,17 @@ from typing import Protocol
 
 import numpy as np
 
+from dc.schema import Feeling, Row
+
 __all__ = [
     "EMBED_MODEL",
     "EMBED_MODEL_REVISION",
+    "FEELINGS",
     "Embedder",
     "MODEL_DIR",
     "SentenceTransformerEmbedder",
+    "build_features",
+    "feeling_one_hot",
     "fetch_model",
     "load_embedder",
 ]
@@ -91,6 +96,34 @@ def fetch_model(model_dir: Path = MODEL_DIR) -> Path:
         ignore_patterns=["*.bin", "*.h5", "*.ot", "*.msgpack", "onnx/*", "openvino/*"],
     )
     return model_dir
+
+
+#: Column order of the feeling one-hot. Recorded in the artifact: a model trained
+#: with one column order and served with another would misread every feeling,
+#: silently, with plausible-looking scores.
+FEELINGS: tuple[Feeling, ...] = tuple(Feeling)
+
+
+def feeling_one_hot(feelings: Sequence[Feeling]) -> np.ndarray:
+    """``(n, 7)`` one-hot of the chip each player picked, in :data:`FEELINGS` order."""
+    index = {feeling: column for column, feeling in enumerate(FEELINGS)}
+    out = np.zeros((len(feelings), len(FEELINGS)), dtype=np.float32)
+    for row, feeling in enumerate(feelings):
+        out[row, index[feeling]] = 1.0
+    return out
+
+
+def build_features(rows: Sequence[Row], embedder: Embedder, *, include_feeling: bool) -> np.ndarray:
+    """The model's input: sentence embedding, optionally followed by the feeling.
+
+    ``include_feeling`` exists to be ablated, not to be switched on. In this
+    dataset the chip is close to a label leak — see the feeling-swap probe in
+    ``dc.selection`` for why a model that reads it is unsafe to serve.
+    """
+    text = np.asarray(embedder.embed([row.free_text for row in rows]), dtype=np.float32)
+    if not include_feeling:
+        return text
+    return np.hstack([text, feeling_one_hot([row.feeling for row in rows])])
 
 
 def load_embedder(model_dir: Path = MODEL_DIR) -> Embedder:

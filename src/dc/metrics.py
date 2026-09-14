@@ -41,6 +41,7 @@ __all__ = [
     "Scores",
     "bootstrap_ci",
     "per_category",
+    "pr_auc",
     "score",
 ]
 
@@ -147,6 +148,11 @@ def _pr_auc(truth: np.ndarray, scores: np.ndarray) -> float:
     if len(np.unique(truth)) < 2:
         return float(np.mean(truth))
     return float(average_precision_score(truth, scores))
+
+
+def pr_auc(y_true: IntArrayLike, y_score: FloatArrayLike) -> float:
+    """Average precision: the threshold-free ranking metric every comparison uses."""
+    return _pr_auc(np.asarray(y_true, dtype=int), np.asarray(y_score, dtype=float))
 
 
 def bootstrap_ci(
