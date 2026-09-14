@@ -39,24 +39,14 @@ from dc.baselines import (
     TeacherBaseline,
     TfidfBaseline,
 )
-from dc.candidates import load_candidates
+from dc.candidates import load_teacher_votes
 from dc.metrics import Scores, per_category, score
 from dc.schema import Row
-from dc.splits import DATA_DIR, load_all_rows, load_assignment, split_rows
+from dc.splits import load_all_rows, load_assignment, split_rows
 
 REPORTS = Path(__file__).resolve().parents[1] / "reports"
-CANDIDATE_DIR = DATA_DIR / "candidates"
 N_FOLDS = 5
 SEED = 0
-
-
-def teacher_votes() -> dict[str, tuple[int, ...]]:
-    """Votes recorded by propose_labels, keyed by row id. No API calls."""
-    return {
-        candidate.id: candidate.teacher_votes
-        for candidate in load_candidates(*sorted(CANDIDATE_DIR.glob("*.jsonl")))
-        if candidate.teacher_votes
-    }
 
 
 def cross_validate(baseline: Baseline, rows: list[Row]) -> np.ndarray:
@@ -178,7 +168,7 @@ def main() -> None:
     print(f"{len(train)} training rows, {n_pos} positive ({n_pos / len(train):.0%}).")
     print(f"{N_FOLDS}-fold CV grouped by origin_id. The test split is untouched.\n")
 
-    votes = teacher_votes()
+    votes = load_teacher_votes()
     baselines: list[Baseline] = [MajorityBaseline(), KeywordBaseline(), TfidfBaseline(SEED)]
 
     if not args.skip_embedding:

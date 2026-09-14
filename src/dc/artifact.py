@@ -50,6 +50,8 @@ SCHEMA_VERSION = 1
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ARTIFACT_DIR = REPO_ROOT / "artifacts"
 NPZ_NAME = "model.npz"
+#: Paths whose uncommitted changes make an artifact's provenance "dirty".
+TRAINING_INPUTS = ("src", "data", "pyproject.toml", "uv.lock")
 JSON_NAME = "model.json"
 
 
@@ -169,18 +171,19 @@ def dataset_sha256(paths: Sequence[Path]) -> str:
 
 
 def source_commit(repo: Path = REPO_ROOT) -> dict[str, Any]:
-    """HEAD at training time, and whether *source* was dirty.
+    """HEAD at training time, and whether the *training inputs* were dirty.
 
-    Changes under ``artifacts/`` and ``reports/`` are ignored for the dirty flag:
-    a re-train always rewrites them, and counting that as dirty would mark every
-    second run as untrustworthy for no reason.
+    "Dirty" is scoped to what can change a trained model: the package source,
+    the data, and the locked dependencies. An edited README cannot, and neither
+    can the artifacts and reports a training run rewrites — counting those made
+    the first committed artifact claim a dirty tree it did not have.
     """
     try:
         commit = subprocess.run(
             ["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True, text=True, check=True
         ).stdout.strip()
         status = subprocess.run(
-            ["git", "status", "--porcelain", "--", ".", ":!artifacts", ":!reports"],
+            ["git", "status", "--porcelain", "--", *TRAINING_INPUTS],
             cwd=repo,
             capture_output=True,
             text=True,

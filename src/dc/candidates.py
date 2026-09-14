@@ -37,9 +37,13 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 
 from dc.schema import MAX_FREE_TEXT, POSITIVE_CATEGORY, Category, Feeling, Provenance, Row
 
+CANDIDATE_DIR = Path(__file__).resolve().parents[2] / "data" / "candidates"
+
 __all__ = [
+    "CANDIDATE_DIR",
     "Candidate",
     "load_candidates",
+    "load_teacher_votes",
     "promote",
     "review_order",
 ]
@@ -139,6 +143,19 @@ def load_candidates(*paths: Path) -> list[Candidate]:
     if duplicates:
         raise ValueError(f"duplicate candidate id(s) across inputs: {sorted(duplicates)}")
     return candidates
+
+
+def load_teacher_votes(directory: Path = CANDIDATE_DIR) -> dict[str, tuple[int, ...]]:
+    """Recorded teacher votes by row id, for every candidate that has them.
+
+    Read from disk rather than re-requested: scoring the teacher, and simulating
+    the escalate route of the cascade, cost nothing once the votes exist.
+    """
+    return {
+        candidate.id: candidate.teacher_votes
+        for candidate in load_candidates(*sorted(directory.glob("*.jsonl")))
+        if candidate.teacher_votes
+    }
 
 
 def review_order(candidates: list[Candidate]) -> list[Candidate]:
