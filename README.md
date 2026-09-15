@@ -1,285 +1,181 @@
 # bloom-safety-classifier
 
-Distilling an LLM safety classifier into a small, explainable, threshold-tuned model —
-dataset, evaluation, and model card.
+A 385-weight classifier that sits in front of an LLM safety check and decides, for each
+free-text note a player writes, whether that check is needed at all.
 
-Companion to [`bloom-langgraph`](../bloom-langgraph), whose *Guided Encouragement* feature routes
-every free-text note through a `claude-haiku-4-5` call before generating anything: distress goes
-to fixed, human-reviewed words; everything else goes to the encouragement branch. That decision
-is unmeasured beyond routing accuracy on 44 cases, costs a model call on the hot path, and cannot
-explain itself. This repo addresses all three.
+It was built to replace most calls to the `claude-haiku-4-5` distress classifier in Bloom's
+*Guided Encouragement* feature ([`bloom-langgraph`](../bloom-langgraph)), and it covers the
+whole lifecycle: dataset, baselines, training, a cost-based cascade, a single test-set
+evaluation, explanations, and a [model card](MODEL_CARD.md).
 
-**Not a diagnostic instrument.** It chooses between two pre-approved response *paths* for an
-in-game message and makes no claim about anyone's mental state.
+> **Not a diagnostic instrument.** It chooses between pre-approved responses to a note typed
+> into a puzzle game. It makes no claim about anyone's mental state.
 
-## Status
+## Results
 
-Milestone 6 of 8 — evaluated on the test set, once. Integration into `bloom-langgraph` comes next.
+Scored **once** on a held-out test set of 191 notes, including the 44 cases that gate
+releases in the companion repo. The look is recorded in `reports/test_ledger.json`.
 
-| # | Milestone | State |
+| | Result | Holds at 95%? |
 | --- | --- | --- |
-| 1 | Scaffold, strict schema, splits + leakage guards | ✅ |
-| 2 | Dataset to 600+ reviewed rows | ✅ 688 rows, 191 positive (28%) |
-| 3 | Baselines 0–3 + the Haiku teacher | ✅ |
-| 4 | Training, CV, calibration, ablations | ✅ |
-| 5 | Cost model, threshold fitting, cascade | ✅ |
-| 6 | Single test-set evaluation, bootstrap CIs | ✅ one look, recorded |
-| 7 | Explanations + model card | — |
-| 8 | Integration PR into `bloom-langgraph` | — |
+| Model PR-AUC (target ≥ 0.90) | **0.953** — cross-validation said 0.960 | no — the interval reaches 0.87 |
+| Crisis-keyword rule PR-AUC | 0.368 | the model beats it: yes |
+| Distress cases missed | **0 of 52** | recall is at least 0.944 |
+| Golden release-gate cases | 10 of 10 routed to support, without the LLM | a gate, not an estimate |
+| LLM calls needed under the cascade | **32%** of notes | — |
+| Non-distress notes sent to support | 27 of 139 (19%) | — |
 
-### Baselines — 5-fold CV on train (497 rows, 28% positive)
-
-| Baseline | Recall | Precision | PR-AUC | Missed |
-| --- | --- | --- | --- | --- |
-| majority | 0.00 | 0.00 | 0.28 | 139 |
-| crisis-keyword regex | 0.13 | 0.64 | 0.33 | 121 |
-| TF-IDF + LR | 0.91 | 0.88 | 0.94 | 13 |
-| **MiniLM + LR** | **0.93** | 0.92 | **0.96** | **10** |
-| `claude-haiku-4-5` (production) | 0.87 | 0.99 | 0.90 | 18 |
-
-Three things worth noting.
-
-**The keyword baseline is nearly useless — recall 0.13.** It was written in good
-faith, not as a strawman, and it still misses 121 of 139 distress cases: real phrasing
-varies far more than any hand-written list anticipates. That is the number that
-justifies building a model at all.
-
-**The frozen embedding space does separate the frames.** MiniLM + LR reaches 0.96
-PR-AUC with a 3% false-positive rate on `game-frustration` — the hard class where
-the wording is shared. So a linear probe is enough, and fine-tuning stays in
-reserve rather than being assumed.
-
-**The candidate is ahead of the model it distils** (0.96 vs 0.90 PR-AUC, 10 missed
-vs 18) — which is possible only because a human corrected the teacher before the
-student saw a label. *That lead did not survive the test set:* on held-out rows the two
-rank about equally (0.94 vs 0.95). See below.
-
-`reports/baselines.md` carries the per-category breakdown, bootstrap intervals, and
-the caveats these numbers need — chiefly that 86% of the training rows came from a
-generator, so the *ordering* is more trustworthy than the magnitudes. **The test
-split is untouched**; it is spent once, at milestone 6.
-
-### Training — `src/dc/train.py`
-
-The spine reads top to bottom as eight steps: load, split, embed, baseline, select,
-threshold, fit, save. Each calls a module and says *why*. After step 2 no test row is
-in scope, and a test fails if one is ever embedded.
-
-**The chip a player picks is a label leak in this dataset, and the model would learn
-it.** Four of the seven feelings carry no distress at all. That comes from how the rows
-were authored, not from anything true about players. Given the chip, the best config
-gains +0.015 PR-AUC in cross-validation. CV rewards the shortcut because the shortcut
-appears in every fold, so CV can't be what rejects it. A counterfactual probe can:
-keep the text of each held-out distress case, change only the chip, and score it again.
-
-| Chip swapped to | Recall before | Recall after |
-| --- | --- | --- |
-| `frustrated` | 0.96 | **0.05** |
-| `proud` | 0.96 | 0.26 |
-| `relieved` | 0.96 | 0.26 |
-| `disappointed` | 0.96 | 0.32 |
-
-A player who picks `frustrated` and then writes a real crisis note would be caught 5% of
-the time. So feeling features are ineligible under the selection rule, which was fixed in
-`dc.selection` before any result existed.
-
-**Selection.** All ten text-only configs land within one standard error of the best
-(0.950–0.962 PR-AUC). The differences between them are fold noise, not evidence. The rule
-takes the lowest Brier score inside that band, **C=10, balanced**, which leaves out
-C=0.01: it ranks almost as well, but its Brier score is six times worse. Calibration out
-of fold: Brier 0.038, ECE 0.054. 72% of rows sit in the two outermost score bins, where
-the model is close to calibrated. The thin middle bins are where it isn't.
-
-**The artifact.** `artifacts/model.npz` + `model.json`: 385 weights, 3.6KB, no pickle.
-Serving needs numpy only, and it matches scikit-learn to about 1e-7. Its operating thresholds come from the cost model below.
-
-### The test set — `reports/test.md`
-
-The test split was scored **once**, and the look is recorded in `reports/test_ledger.json`
-with hashes of the artifact, the data, and the evaluation code. A second look is refused
-unless it gives a reason, and the reason is recorded. Everything in the report is computed
-from saved predictions, so a report fix never reads a test row again. The report was
-re-rendered twice to correct how intervals were shown; both renders are in the ledger with
-notes.
-
-| Target | Result | Point estimate | Holds at 95% |
-| --- | --- | --- | --- |
-| Golden distress cases caught | 10 of 10 to support, without the LLM | ✅ | — a gate, not an estimate |
-| Cascade recall ≥ 0.98 | 1.000 over 42 cases | ✅ | **no** — lower bound 0.931 |
-| Model PR-AUC ≥ 0.90 | 0.953 | ✅ | **no** — interval reaches 0.87 |
-| Beats the keyword rule | 0.953 vs 0.368 | ✅ | yes — intervals don't overlap |
-| No recall regression | 1.000 vs 1.000 | ✅ | — both at the ceiling |
-
-**Every target passes on its point estimate, and two are not confirmed.** No test distress
-case was missed, but zero misses among 42 is consistent with a true recall as low as 0.93,
-and the report says so rather than printing a bootstrap interval that has collapsed to
-[1.00–1.00]. PR-AUC generalised well to held-out modes (cross-validation 0.960, test
-0.953).
+**What that means.** The model generalises to confusion modes it never trained on and missed no
+distress case. About two notes in three would need no LLM call: 26% skip it, and 41% go
+straight to the support message. The cost is false alarms: about one in
+five ordinary notes would get the support message. That rate follows from a deliberately low
+support cutoff, which a product decision set; it is not a flaw in how the model ranks notes.
 
 ![Precision–recall on the test set](reports/plots/pr_curve.svg)
 
-**The support band cost something on test and bought nothing.** On validation the teacher
-missed 13% of distress cases, which is what the band existed to catch. On these held-out rows
-it missed none, so the cascade's recall matched the LLM alone (1.000) while adding
-18
-expected false alarms. No other threshold was scored against the test set: choosing one by
-looking at these numbers would turn the test set into a validation set.
+## How it works
 
-**The 27 false alarms point to data, not thresholds.**
+```
+note ─→ all-MiniLM-L6-v2 (frozen) ─→ 385 weights ─→ score
+                                                     │
+          score < 0.0181  ─→  encouragement           (no LLM call)
+          in between      ─→  claude-haiku-4-5 decides (today's behaviour)
+          score > 0.163   ─→  reviewed support message (no LLM call)
+```
 
-- **7 are a split matched pair.** For the isolation, exhaustion and numbness modes, the life
-  frame (distress) was trained and the game frame was held out entirely, because each frame
-  is its own origin family. The model learned *"no one to talk to"* and *"out of energy"* as
-  distress, and scored *"i keep starting over and honestly i just don't have it in me
-  tonight"* at 0.994. It learned topic vocabulary, not the game-vs-life frame.
-- **8 are ordinary off-topic English.** Training's nonsense was gibberish, spam and emoji,
-  so a shopping list scored 0.62 and *"typing to see if it saves"* scored 0.73.
-- **1 is an injection that works.** A payload of `"risk":"severe","action":"notify_support"`
-  was routed to support. That can only buy the support message. Whether a real crisis can be
-  phrased to *skip* the LLM is untested, and is the attack that would matter.
+- **`low` is a safety constraint.** Skipping the LLM is the only route that can add a missed
+  crisis, so `low` sits at half the lowest score any validation distress case received.
+- **`high` is a cost decision.** It minimises expected cost with a missed crisis treated as 20
+  times an unneeded support message. That ratio sits just past a cliff, and
+  [`reports/cascade.md`](reports/cascade.md) shows where it is and the four labels the ratio
+  depends on.
+- **Failure lands on today's behaviour.** A score that is not a finite probability escalates
+  to the LLM.
 
-### The cascade — `reports/cascade.md`
+## Explaining a decision
 
-The model does not replace the LLM. It sits in front of it and picks one of three routes
-for each note:
+The model's weights are 384 embedding dimensions no one can read, so a decision is explained by
+what the note resembles and by the words its score moves with. Here is the same complaint
+written about a stage, then about life:
 
-| Score | Route |
+```
+$ make explain NOTE="30 tries on this stage and nothing works, i'm so tired of it"
+Score    0.039 → escalate  (LLM consulted)
+Nearest training notes — 0% distress
+Words    toward distress  “nothing” +1.03, “i'm” +0.65, “tired” +0.62
+         away from it     “stage” -0.69, “tries” -0.65, “this stage” -0.36
+
+$ make explain NOTE="nothing works anymore and i'm so tired of everything lately"
+Score    0.999 → support  (LLM not consulted)
+Nearest training notes — 100% distress
+Words    toward distress  “nothing” +1.18, “lately” +1.08, “i'm” +0.74
+```
+
+The words come from a surrogate fitted to the model's scores, which tracks the model at R²
+0.68, so they are an approximation and are always labelled as one. Decision records store a
+hash of the note, never the note.
+
+## What building it found
+
+**A keyword list is not enough.** A good-faith crisis-keyword rule caught 13% of distress cases
+in cross-validation. Real phrasing varies far more than any list anticipates.
+
+**A frozen embedding is enough.** A linear model over frozen MiniLM embeddings reached 0.96
+PR-AUC, with a 3% false-positive rate on game frustration, so fine-tuning was never needed.
+
+**The obvious extra feature was a trap.** In this dataset, the feeling chip a player picks
+almost gives away the label. Cross-validation *rewarded* using it. A counterfactual probe showed
+why that is unsafe: re-score real distress notes with only the chip changed to `frustrated`,
+and recall falls from 0.96 to 0.05. Feeling features were ruled out before the model was chosen.
+
+**The test set was looked at once, on purpose.** Scoring writes a ledger entry before any number
+is shown; a second look is refused without a recorded reason. The report is rendered from saved
+predictions, so fixing it never reads a test row again — and every re-render is logged.
+
+**The errors point to data, not thresholds.** Of 27 false alarms, 22 resemble ordinary notes
+and cleared the low support cutoff. The other five resemble distress: game notes in
+first-person, ongoing-state language, like *"i keep starting over and honestly i just don't
+have it in me tonight"* (0.994). The model has learned how a note is said more than what it
+is about.
+
+**One of my own conclusions did not survive.** The first error analysis blamed seven errors on
+matched pairs split across train and test. The nearest-neighbour explanations did not support
+that, and the analysis was corrected in the open.
+
+## Before shipping
+
+The [model card](MODEL_CARD.md) sets out what is still open. In short: confirm the 20:1 ratio
+knowing where the cliff is; red-team the skip band, since on test 7 of 20 injection notes
+scored low enough to skip the LLM; collect game notes in first-person, ongoing-state language
+and ordinary off-topic sentences; and add a second reviewer, because every label so far comes
+from one person, alongside a dataset that is 80% synthetic.
+
+## Reports
+
+| | |
 | --- | --- |
-| p < 0.0181 | **skip the LLM** — straight to encouragement |
-| between | **escalate** — `claude-haiku-4-5` decides, exactly as it does today |
-| p > 0.163 | **support** — straight to the reviewed support message |
-
-A score exactly on a threshold escalates, and so does any score that isn't a finite
-probability. Every way the local model can fail lands on today's behaviour.
-
-**`low` is a safety constraint, not an optimisation.** Skipping the LLM is the only route
-that can add a missed crisis, so `low` sits at half the lowest score any validation
-distress case received. Zero misses on 139 cases is still a finite sample, so the report
-says it the honest way: the true share of distress cases that would skip the LLM is below
-2.1% with 95% confidence. The case that set `low` is an
-indirect disclosure of abuse at home, scored at 0.036: the kind of note a frozen embedding
-under-reads, and the kind the constraint exists to protect.
-
-**`high` is chosen by expected cost, with a missed crisis treated as 20× an unneeded
-support message.** On validation, expected values:
-
-| Policy | Expected recall | Expected false alarms | LLM calls |
-| --- | --- | --- | --- |
-| LLM alone (today) | 0.863 | 1.3 | 100% |
-| **cascade** | 1.000 | 61.0 | 34% |
-
-**Those numbers need two warnings.** First, recall 1.000 describes how the thresholds were
-built, not how they will perform: both were fitted on these same rows. Second, 20:1 sits
-just past a cliff. Above 13.2:1 the cost model sends 40% of all notes
-to support. Below it, `high` would be 0.510, with 4 more expected missed crises and 53
-fewer false alarms. That whole trade rests on **4 labelled-distress notes where the teacher
-voted "not distress" three times out of three**. One of them is work venting, which the
-production prompt explicitly classes as not distress. The report lists all four. Whether
-they are distress, and so whether 20:1 is the right ratio, is a product decision. It was
-not made here.
-
-**Latency** (`make bench`, a snapshot): the local path — embed, score, route — is 4.8 ms at
-p50 on a laptop CPU. The LLM path isn't timed by default because it costs money; the report
-explains how to run it.
-
-## What is here so far
-
-- **`src/dc/schema.py`** — the row model and a strict loader. Six invariants, each guarding a
-  specific silent failure; the most important is that `label == 1` **iff** `category == "distress"`,
-  so a mislabelled row is a contradiction the loader catches rather than a plausible mistake.
-- **`src/dc/splits.py`** — the frozen train/test assignment. Two rules: golden rows are always
-  test, and paraphrase groups never straddle the line. Groups are ordered by a salted hash rather
-  than shuffled, so adding rows in milestone 2 will not reshuffle what is already assigned.
-- **`data/seed.jsonl`** — the 44 golden cases imported from the companion repo. These are the
-  release gate already running in its CI; training on them would keep that gate reporting 100%
-  while measuring nothing, so `dc.splits` forces every one into the test set.
-- **`src/dc/candidates.py`** — a candidate is a row nobody has vouched for yet. It carries a
-  *proposed* label and cannot be loaded as training data; `promote()` is the only way across, and
-  it requires a reviewer's name.
-- **`src/dc/teacher.py`** — the classifier being distilled, with its prompt copied verbatim from
-  production and a drift guard that fails the tests if the two diverge.
-- **`data/candidates/curated.jsonl`** — 92 hand-written candidates, described below.
-
-### The curated taxonomy
-
-The hard part of this problem is that a player writing *"I want to die, this stage took me 40
-tries"* and a player writing *"I want to die. I can't do this anymore"* produce nearly the same
-string and need opposite responses.
-
-So the hand-written pack is not a pile of examples — it is a **taxonomy of confusion modes**, and
-18 of them are written as *matched pairs*: identical surface phrasing, one in a game frame and one
-in a life frame. Death idiom, giving up, hopelessness, worthlessness, exhaustion, pointlessness,
-numbness, isolation, sleeplessness, finality, and more. Every trivial baseline fails on these, and
-they are where the error analysis will live.
-
-`tests/test_curated_pack.py` protects that argument: if the pairs stop being matched, or the hard
-class stops outweighing the positive class, the tests fail rather than the numbers quietly getting
-easier.
-
-### How a row becomes training data
-
-```
-curated.jsonl ─┐
-               ├─→ propose_labels.py ──→ review.py ──→ labelled.jsonl
-generated.jsonl┘   (teacher orders       (a human       (training data)
-                    the queue)            decides)
-```
-
-The teacher never assigns a label. It classifies each candidate several times and records where it
-**contradicts the author** and where it **contradicts itself across runs** — those rows go to the
-top of the review queue, because they are the genuinely ambiguous ones. Reviewing a proposal is
-fast; assigning a label from scratch is not. That is the only reason the teacher is in the loop.
-
-Because a human corrects the teacher before the student ever sees a label, the labels end up
-*better* than the teacher's — which is what makes it possible for the student to beat it.
+| [`MODEL_CARD.md`](MODEL_CARD.md) | Intended use, data, evaluation, thresholds, failure modes, ethics |
+| [`reports/test.md`](reports/test.md) | The test evaluation, with every error listed and diagnosed |
+| [`reports/explanations.md`](reports/explanations.md) | What the model responds to, and each test error explained |
+| [`reports/cascade.md`](reports/cascade.md) | The cost model, both thresholds, and the cliff |
+| [`reports/training.md`](reports/training.md) | Model selection, the feeling-chip probe, calibration |
+| [`reports/baselines.md`](reports/baselines.md) | Baselines 0–4 under cross-validation |
 
 ## Running
 
-Only the two API scripts need a credential; everything else is offline. Either export
-`ANTHROPIC_API_KEY`, or `cp .env.example .env` and fill it in, or run `ant auth login` once and
-leave both unset — the SDK resolves all three.
-
 ```bash
 uv sync
-make seed                   # import the golden cases from ../bloom-langgraph
-make check                  # ruff + pyright strict + pytest
-make stats                  # review queue summary
-
-# These two call the API and cost money. The bare targets only estimate;
-# the -run targets actually spend. Extra flags go through ARGS.
-make generate               # cost estimate for candidate expansion
-make generate-run           # ...actually spend  (ARGS="--per-seed 8")
-make propose                # cost estimate for the teacher pass
-make propose-run            # ...actually spend  (ARGS="--votes 5")
-
-make review REVIEWER=uv     # the only path from candidate to training data
-make splits                 # (re)build data/splits.json once labelled.jsonl exists
-
+make check                  # ruff + pyright strict + pytest — all offline
 make vendor-model           # one ~90MB download of the pinned MiniLM weights
-make baselines              # baselines 0-4, CV on train  (ARGS="--skip-embedding")
+
+make baselines              # baselines 0-4, cross-validated on train
 make train                  # select, fit thresholds, write artifacts/ and reports/
-make bench                  # latency snapshot  (ARGS="--llm-calls 20 --yes" costs money)
+make explain NOTE="..."     # explain one note
+make explain-errors         # explain the test set's recorded errors
+make evaluate-render        # re-render the test report from saved predictions
 ```
 
-## Design
+Building the dataset calls the API and costs money. Each command prints an estimate and sends
+nothing until confirmed:
 
-Four commitments the rest of this repo is built around.
+```bash
+make generate                          # estimate: expand the hand-written taxonomy
+make generate-run                      # ...and spend
+make propose                           # estimate: record the teacher's votes, to order review
+make propose-run                       # ...and spend
+make review REVIEWER=<name>            # the only path from candidate to training data
+```
 
-**The model is deliberately linear** — logistic regression over frozen `all-MiniLM-L6-v2`
-embeddings. 800 examples cannot train 22.7M parameters without memorising them, and a
-385-parameter artifact is auditable, needs no GPU, and adds sub-millisecond inference rather
-than a second model to serve.
+`make evaluate` scores the test set, and it has already been run. It refuses a second look
+unless you pass `ARGS='--again "<reason>"'`; the reason is recorded, and the model card must
+disclose it.
 
-**Explainability is honest about its limits.** A coefficient over embedding dimension 197 means
-nothing to anyone. Decisions are explained by nearest labelled neighbours in the same embedding
-space, by a parallel TF-IDF model whose coefficients *are* words, and by a per-decision record —
-not by pointing at the deployed model's weights.
+## Layout
 
-**Every baseline must be beaten in order**: majority class, then a hand-built crisis-keyword
-regex, then TF-IDF, then embeddings. If the keyword list wins, the honest conclusion is that no
-model was needed.
+```
+src/dc/
+  schema.py  splits.py            strict rows; a split that never leaks a paraphrase
+  candidates.py  teacher.py       unreviewed rows; the teacher prompt, with a drift guard
+  baselines.py  features.py       baselines 0-4; the pinned embedder
+  selection.py  calibration.py    grouped CV, a rule fixed in advance; the feeling probe
+  cascade.py                      routes, the cost model, both thresholds
+  model.py  artifact.py           385 weights as npz + json, no pickle
+  train.py                        the eight-step walkthrough spine
+  evaluate.py  ledger.py          the test set, spent once, and the record of it
+  explain.py  plots.py            neighbours, a word surrogate, decision records; SVG charts
+scripts/                          dataset building, baselines, latency
+data/  artifacts/  reports/       committed; the audit surface
+```
 
-**The operating threshold comes from a stated cost model, not from 0.5.** A missed distress case
-is treated as ~20x costlier than a false positive — a false positive receives the reviewed
-support message, which is warm and appropriate on its own. That ratio is a product decision,
-written down so it can be argued with and changed without retraining.
+## Status
+
+| # | Milestone | |
+| --- | --- | --- |
+| 1 | Scaffold, schema, leakage-proof split | ✅ |
+| 2 | Dataset: 688 rows, reviewed | ✅ |
+| 3 | Baselines | ✅ |
+| 4 | Training, calibration, the feeling-chip probe | ✅ |
+| 5 | Cost model, thresholds, cascade | ✅ |
+| 6 | One test-set evaluation | ✅ |
+| 7 | Explanations and model card | ✅ |
+| 8 | Integration into `bloom-langgraph` | — |
