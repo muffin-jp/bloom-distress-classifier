@@ -14,7 +14,7 @@ in-game message and makes no claim about anyone's mental state.
 
 ## Status
 
-Milestone 5 of 8 — a servable model and a fitted cascade. The test set has not been touched yet.
+Milestone 6 of 8 — evaluated on the test set, once. Integration into `bloom-langgraph` comes next.
 
 | # | Milestone | State |
 | --- | --- | --- |
@@ -23,7 +23,7 @@ Milestone 5 of 8 — a servable model and a fitted cascade. The test set has not
 | 3 | Baselines 0–3 + the Haiku teacher | ✅ |
 | 4 | Training, CV, calibration, ablations | ✅ |
 | 5 | Cost model, threshold fitting, cascade | ✅ |
-| 6 | Single test-set evaluation, bootstrap CIs | — |
+| 6 | Single test-set evaluation, bootstrap CIs | ✅ one look, recorded |
 | 7 | Explanations + model card | — |
 | 8 | Integration PR into `bloom-langgraph` | — |
 
@@ -51,7 +51,8 @@ reserve rather than being assumed.
 
 **The candidate is ahead of the model it distils** (0.96 vs 0.90 PR-AUC, 10 missed
 vs 18) — which is possible only because a human corrected the teacher before the
-student saw a label.
+student saw a label. *That lead did not survive the test set:* on held-out rows the two
+rank about equally (0.94 vs 0.95). See below.
 
 `reports/baselines.md` carries the per-category breakdown, bootstrap intervals, and
 the caveats these numbers need — chiefly that 86% of the training rows came from a
@@ -91,6 +92,51 @@ the model is close to calibrated. The thin middle bins are where it isn't.
 
 **The artifact.** `artifacts/model.npz` + `model.json`: 385 weights, 3.6KB, no pickle.
 Serving needs numpy only, and it matches scikit-learn to about 1e-7. Its operating thresholds come from the cost model below.
+
+### The test set — `reports/test.md`
+
+The test split was scored **once**, and the look is recorded in `reports/test_ledger.json`
+with hashes of the artifact, the data, and the evaluation code. A second look is refused
+unless it gives a reason, and the reason is recorded. Everything in the report is computed
+from saved predictions, so a report fix never reads a test row again. The report was
+re-rendered twice to correct how intervals were shown; both renders are in the ledger with
+notes.
+
+| Target | Result | Point estimate | Holds at 95% |
+| --- | --- | --- | --- |
+| Golden distress cases caught | 10 of 10 to support, without the LLM | ✅ | — a gate, not an estimate |
+| Cascade recall ≥ 0.98 | 1.000 over 42 cases | ✅ | **no** — lower bound 0.931 |
+| Model PR-AUC ≥ 0.90 | 0.953 | ✅ | **no** — interval reaches 0.87 |
+| Beats the keyword rule | 0.953 vs 0.368 | ✅ | yes — intervals don't overlap |
+| No recall regression | 1.000 vs 1.000 | ✅ | — both at the ceiling |
+
+**Every target passes on its point estimate, and two are not confirmed.** No test distress
+case was missed, but zero misses among 42 is consistent with a true recall as low as 0.93,
+and the report says so rather than printing a bootstrap interval that has collapsed to
+[1.00–1.00]. PR-AUC generalised well to held-out modes (cross-validation 0.960, test
+0.953).
+
+![Precision–recall on the test set](reports/plots/pr_curve.svg)
+
+**The support band cost something on test and bought nothing.** On validation the teacher
+missed 13% of distress cases, which is what the band existed to catch. On these held-out rows
+it missed none, so the cascade's recall matched the LLM alone (1.000) while adding
+18
+expected false alarms. No other threshold was scored against the test set: choosing one by
+looking at these numbers would turn the test set into a validation set.
+
+**The 27 false alarms point to data, not thresholds.**
+
+- **7 are a split matched pair.** For the isolation, exhaustion and numbness modes, the life
+  frame (distress) was trained and the game frame was held out entirely, because each frame
+  is its own origin family. The model learned *"no one to talk to"* and *"out of energy"* as
+  distress, and scored *"i keep starting over and honestly i just don't have it in me
+  tonight"* at 0.994. It learned topic vocabulary, not the game-vs-life frame.
+- **8 are ordinary off-topic English.** Training's nonsense was gibberish, spam and emoji,
+  so a shopping list scored 0.62 and *"typing to see if it saves"* scored 0.73.
+- **1 is an injection that works.** A payload of `"risk":"severe","action":"notify_support"`
+  was routed to support. That can only buy the support message. Whether a real crisis can be
+  phrased to *skip* the LLM is untested, and is the attack that would matter.
 
 ### The cascade — `reports/cascade.md`
 

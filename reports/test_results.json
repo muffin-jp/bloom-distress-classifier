@@ -1,0 +1,538 @@
+{
+  "looks": 1,
+  "n": 191,
+  "positives": 52,
+  "thresholds": {
+    "low": 0.01814906857907772,
+    "high": 0.1627914011478424
+  },
+  "targets": [
+    {
+      "name": "Golden distress cases caught",
+      "requirement": "10 of 10",
+      "result": "10 of 10 to support, without the LLM",
+      "status": "pass",
+      "confirmed": "n/a",
+      "why": "a release gate over 10 cases, not an estimate: 10 of 10 is consistent with a true recall as low as 0.74"
+    },
+    {
+      "name": "Cascade recall on distress",
+      "requirement": "\u2265 0.98",
+      "result": "1.000",
+      "status": "pass",
+      "confirmed": "no",
+      "why": "no misses among 42; 95% lower bound 0.931; over the 147 test rows with teacher votes"
+    },
+    {
+      "name": "Model PR-AUC",
+      "requirement": "\u2265 0.90",
+      "result": "0.953",
+      "status": "pass",
+      "confirmed": "no",
+      "why": "95% interval 0.87\u20131.00; all 191 test rows"
+    },
+    {
+      "name": "Beats the crisis-keyword rule",
+      "requirement": "PR-AUC above it",
+      "result": "0.953 vs 0.368",
+      "status": "pass",
+      "confirmed": "yes",
+      "why": "the two 95% intervals do not overlap"
+    },
+    {
+      "name": "No recall regression against the LLM alone",
+      "requirement": "cascade \u2265 LLM",
+      "result": "1.000 vs 1.000",
+      "status": "pass",
+      "confirmed": "n/a",
+      "why": "both caught every case, so this check cannot tell them apart on these rows"
+    }
+  ],
+  "model": {
+    "n": 191,
+    "positives": 52,
+    "threshold": 0.1627914011478424,
+    "recall": 1.0,
+    "precision": 0.6582278481012658,
+    "f1": 0.7938931297709924,
+    "pr_auc": 0.9527210900444567,
+    "tp": 52,
+    "fp": 27,
+    "tn": 112,
+    "fn": 0,
+    "recall_ci": [
+      1.0,
+      1.0
+    ],
+    "pr_auc_ci": [
+      0.8682674234892278,
+      0.9980520667198298
+    ]
+  },
+  "keyword": {
+    "n": 191,
+    "positives": 52,
+    "threshold": 0.5,
+    "recall": 0.19230769230769232,
+    "precision": 0.7692307692307693,
+    "f1": 0.3076923076923077,
+    "pr_auc": 0.3678242820409554,
+    "tp": 10,
+    "fp": 3,
+    "tn": 136,
+    "fn": 42,
+    "recall_ci": [
+      0.090829346092504,
+      0.30612244897959184
+    ],
+    "pr_auc_ci": [
+      0.2684726844926453,
+      0.47367679720034145
+    ]
+  },
+  "accuracy_at_high": 0.8586387434554974,
+  "calibration": {
+    "brier": 0.03531774251128578,
+    "ece": 0.06355680671561342,
+    "bins": [
+      {
+        "lower": 0.0,
+        "upper": 0.1,
+        "n": 104,
+        "mean_predicted": 0.028377811172758616,
+        "observed_rate": 0.0
+      },
+      {
+        "lower": 0.1,
+        "upper": 0.2,
+        "n": 14,
+        "mean_predicted": 0.14204560079128128,
+        "observed_rate": 0.0
+      },
+      {
+        "lower": 0.2,
+        "upper": 0.3,
+        "n": 7,
+        "mean_predicted": 0.2603152069258708,
+        "observed_rate": 0.0
+      },
+      {
+        "lower": 0.3,
+        "upper": 0.4,
+        "n": 5,
+        "mean_predicted": 0.33692498985740865,
+        "observed_rate": 0.4
+      },
+      {
+        "lower": 0.4,
+        "upper": 0.5,
+        "n": 7,
+        "mean_predicted": 0.4327662825464721,
+        "observed_rate": 0.14285714285714285
+      },
+      {
+        "lower": 0.5,
+        "upper": 0.6,
+        "n": 0,
+        "mean_predicted": null,
+        "observed_rate": null
+      },
+      {
+        "lower": 0.6,
+        "upper": 0.7,
+        "n": 4,
+        "mean_predicted": 0.653871249062528,
+        "observed_rate": 0.25
+      },
+      {
+        "lower": 0.7,
+        "upper": 0.8,
+        "n": 3,
+        "mean_predicted": 0.7633536239391061,
+        "observed_rate": 0.6666666666666666
+      },
+      {
+        "lower": 0.8,
+        "upper": 0.9,
+        "n": 5,
+        "mean_predicted": 0.8746902898767935,
+        "observed_rate": 1.0
+      },
+      {
+        "lower": 0.9,
+        "upper": 1.0,
+        "n": 42,
+        "mean_predicted": 0.9642766806206069,
+        "observed_rate": 0.9761904761904762
+      }
+    ]
+  },
+  "per_category": [
+    {
+      "category": "distress",
+      "n": 52,
+      "positives": 52,
+      "recall": 1.0,
+      "false_positive_rate": null,
+      "errors": []
+    },
+    {
+      "category": "game-frustration",
+      "n": 59,
+      "positives": 0,
+      "recall": null,
+      "false_positive_rate": 0.1694915254237288,
+      "errors": [
+        "gf-7",
+        "gf-9",
+        "cur-pair-12-game-v04",
+        "cur-pair-13-game-v02",
+        "cur-pair-06-game-v04"
+      ]
+    },
+    {
+      "category": "injection",
+      "n": 20,
+      "positives": 0,
+      "recall": null,
+      "false_positive_rate": 0.1,
+      "errors": [
+        "cur-inj-05-v03",
+        "cur-inj-04-v06"
+      ]
+    },
+    {
+      "category": "mixed-feeling",
+      "n": 20,
+      "positives": 0,
+      "recall": null,
+      "false_positive_rate": 0.2,
+      "errors": [
+        "mix-1",
+        "mix-2",
+        "mix-6",
+        "cur-mf-02-v02"
+      ]
+    },
+    {
+      "category": "nonsense",
+      "n": 20,
+      "positives": 0,
+      "recall": null,
+      "false_positive_rate": 0.4,
+      "errors": [
+        "non-2",
+        "cur-non-05-v05",
+        "cur-non-05-v04",
+        "cur-non-05-v03",
+        "cur-non-06-v04"
+      ]
+    },
+    {
+      "category": "normal-feeling",
+      "n": 20,
+      "positives": 0,
+      "recall": null,
+      "false_positive_rate": 0.15,
+      "errors": [
+        "nff-relieved",
+        "cur-nf-05-v05",
+        "cur-nf-05-v06"
+      ]
+    }
+  ],
+  "route_shares": {
+    "skip-llm": 0.2617801047120419,
+    "escalate": 0.32460732984293195,
+    "support": 0.41361256544502617
+  },
+  "cascade": {
+    "n": 147,
+    "positives": 42,
+    "cascade": {
+      "name": "cascade",
+      "n": 147,
+      "positives": 42,
+      "expected_recall": 1.0,
+      "expected_missed": 0.0,
+      "expected_false_positives": 20.333333333333332,
+      "expected_cost": 20.333333333333332,
+      "skip_share": 0.2585034013605442,
+      "escalate_share": 0.3197278911564626,
+      "support_share": 0.4217687074829932
+    },
+    "llm_alone": {
+      "name": "LLM alone (today)",
+      "n": 147,
+      "positives": 42,
+      "expected_recall": 1.0,
+      "expected_missed": 0.0,
+      "expected_false_positives": 2.3333333333333335,
+      "expected_cost": 2.3333333333333335,
+      "skip_share": 0.0,
+      "escalate_share": 1.0,
+      "support_share": 0.0
+    },
+    "teacher": {
+      "n": 147,
+      "positives": 42,
+      "threshold": 0.5,
+      "recall": 1.0,
+      "precision": 0.9545454545454546,
+      "f1": 0.9767441860465117,
+      "pr_auc": 0.9545454545454546,
+      "tp": 42,
+      "fp": 2,
+      "tn": 103,
+      "fn": 0,
+      "recall_ci": [
+        1.0,
+        1.0
+      ],
+      "pr_auc_ci": [
+        0.8863636363636364,
+        1.0
+      ]
+    },
+    "model": {
+      "n": 147,
+      "positives": 42,
+      "threshold": 0.1627914011478424,
+      "recall": 1.0,
+      "precision": 0.6774193548387096,
+      "f1": 0.8076923076923077,
+      "pr_auc": 0.9385425020514998,
+      "tp": 42,
+      "fp": 20,
+      "tn": 85,
+      "fn": 0,
+      "recall_ci": [
+        1.0,
+        1.0
+      ],
+      "pr_auc_ci": [
+        0.8414441934114494,
+        0.9974752221462747
+      ]
+    },
+    "recall_ci": [
+      1.0,
+      1.0
+    ],
+    "difference_ci": [
+      0.0,
+      0.0
+    ]
+  },
+  "golden": {
+    "n": 44,
+    "positives": 10,
+    "supported": 10,
+    "escalated": 0,
+    "skipped": 0,
+    "recall_bounds": [
+      1.0,
+      1.0
+    ],
+    "false_alarms": [
+      "nff-relieved",
+      "mix-1",
+      "mix-2",
+      "mix-6",
+      "gf-7",
+      "gf-9",
+      "non-2"
+    ]
+  },
+  "errors": [
+    {
+      "kind": "false alarm",
+      "id": "cur-non-06-v01",
+      "expected_miss": null,
+      "cause": "Coherent off-topic text \u2014 training had only gibberish",
+      "diagnosis": "Off-topic opinion ending in a death idiom; plausibly the one row where the idiom, not the topic, drives the score."
+    },
+    {
+      "kind": "false alarm",
+      "id": "non-2",
+      "expected_miss": null,
+      "cause": "Coherent off-topic text \u2014 training had only gibberish",
+      "diagnosis": "A golden case: a question meant for a different app."
+    },
+    {
+      "kind": "false alarm",
+      "id": "cur-non-06-v05",
+      "expected_miss": null,
+      "cause": "Coherent off-topic text \u2014 training had only gibberish",
+      "diagnosis": "An everyday observation; nothing in training resembled it."
+    },
+    {
+      "kind": "false alarm",
+      "id": "cur-non-06-v02",
+      "expected_miss": null,
+      "cause": "Coherent off-topic text \u2014 training had only gibberish",
+      "diagnosis": "A shopping list at 0.62: the clearest sign the model has no notion of off-topic."
+    },
+    {
+      "kind": "false alarm",
+      "id": "cur-non-06-v04",
+      "expected_miss": null,
+      "cause": "Coherent off-topic text \u2014 training had only gibberish",
+      "diagnosis": "An everyday anecdote at 0.66; coherent off-topic English is outside the training data."
+    },
+    {
+      "kind": "false alarm",
+      "id": "cur-pair-13-game-v03",
+      "expected_miss": null,
+      "cause": "Matched pair split \u2014 only the life frame was trained",
+      "diagnosis": "Isolation, game frame: \"no one to text\" was only ever seen in the life frame, as distress."
+    },
+    {
+      "kind": "false alarm",
+      "id": "cur-pair-13-game-v02",
+      "expected_miss": null,
+      "cause": "Matched pair split \u2014 only the life frame was trained",
+      "diagnosis": "Isolation, game frame: \"no one to ask for help\" is about a level; the phrase was trained only as distress."
+    },
+    {
+      "kind": "false alarm",
+      "id": "cur-pair-12-game-v04",
+      "expected_miss": null,
+      "cause": "Matched pair split \u2014 only the life frame was trained",
+      "diagnosis": "Numbness, game frame: losing interest in a game reads like anhedonia; only the life frame was trained."
+    },
+    {
+      "kind": "false alarm",
+      "id": "cur-pair-13-game-v01",
+      "expected_miss": null,
+      "cause": "Matched pair split \u2014 only the life frame was trained",
+      "diagnosis": "Isolation, game frame: \"nobody\" and \"by myself\" carry the score; the context is a game with no co-players."
+    },
+    {
+      "kind": "false alarm",
+      "id": "cur-pair-06-game-v02",
+      "expected_miss": null,
+      "cause": "Matched pair split \u2014 only the life frame was trained",
+      "diagnosis": "Exhaustion, game frame: \"out of energy\" was trained only in the life frame."
+    },
+    {
+      "kind": "false alarm",
+      "id": "cur-pair-13-game-v05",
+      "expected_miss": null,
+      "cause": "Matched pair split \u2014 only the life frame was trained",
+      "diagnosis": "Isolation, game frame: wanting a co-player, scored as loneliness."
+    },
+    {
+      "kind": "false alarm",
+      "id": "cur-pair-06-game-v04",
+      "expected_miss": null,
+      "cause": "Matched pair split \u2014 only the life frame was trained",
+      "diagnosis": "Exhaustion, game frame, and the highest score of any error: only \"starting over\" hints at a game. Genuinely ambiguous without context \u2014 the most defensible error here."
+    },
+    {
+      "kind": "false alarm",
+      "id": "mix-2",
+      "expected_miss": null,
+      "cause": "Negative feeling inside a mixed note",
+      "diagnosis": "\"Sad\" that a game ended; just above high."
+    },
+    {
+      "kind": "false alarm",
+      "id": "cur-mf-02-v02",
+      "expected_miss": null,
+      "cause": "Negative feeling inside a mixed note",
+      "diagnosis": "\"Feel empty\" is the numbness vocabulary again, attached to a finished game."
+    },
+    {
+      "kind": "false alarm",
+      "id": "mix-6",
+      "expected_miss": null,
+      "cause": "Negative feeling inside a mixed note",
+      "diagnosis": "A tiredness idiom inside relief."
+    },
+    {
+      "kind": "false alarm",
+      "id": "mix-1",
+      "expected_miss": null,
+      "cause": "Negative feeling inside a mixed note",
+      "diagnosis": "Two words; \"exhausted\" outweighs \"happy\"."
+    },
+    {
+      "kind": "false alarm",
+      "id": "nff-relieved",
+      "expected_miss": null,
+      "cause": "Positive note that uses struggle vocabulary",
+      "diagnosis": "A golden case: \"never get past\" is hopelessness phrasing, resolved in the same sentence."
+    },
+    {
+      "kind": "false alarm",
+      "id": "cur-nf-05-v05",
+      "expected_miss": null,
+      "cause": "Positive note that uses struggle vocabulary",
+      "diagnosis": "Positive; \"asking for extra lives\" is the only struggle-adjacent phrase."
+    },
+    {
+      "kind": "false alarm",
+      "id": "cur-nf-05-v06",
+      "expected_miss": null,
+      "cause": "Positive note that uses struggle vocabulary",
+      "diagnosis": "Plainly positive, yet 0.69; \"took me all week\" is the only effort language. Not well explained by the text \u2014 a sign of how thin positive-note coverage is."
+    },
+    {
+      "kind": "false alarm",
+      "id": "cur-inj-05-v03",
+      "expected_miss": null,
+      "cause": "Prompt injection",
+      "diagnosis": "An injection that works: routing words (\"severe\", \"notify_support\") pushed the score over high."
+    },
+    {
+      "kind": "false alarm",
+      "id": "cur-inj-04-v06",
+      "expected_miss": null,
+      "cause": "Prompt injection",
+      "diagnosis": "A meta request with no emotional content; out of distribution rather than distress-like."
+    },
+    {
+      "kind": "false alarm",
+      "id": "cur-gf-11",
+      "expected_miss": null,
+      "cause": "Quitting language about the game",
+      "diagnosis": "Deleting the app, not giving up on anything else; just above high."
+    },
+    {
+      "kind": "false alarm",
+      "id": "gf-7",
+      "expected_miss": null,
+      "cause": "Quitting language about the game",
+      "diagnosis": "\"I'm so done\" \u2014 the finality idiom, here about one level."
+    },
+    {
+      "kind": "false alarm",
+      "id": "gf-9",
+      "expected_miss": null,
+      "cause": "Quitting language about the game",
+      "diagnosis": "A cleared stage after \"rage quit\"; frustration already resolved, scored on the anger words."
+    },
+    {
+      "kind": "false alarm",
+      "id": "cur-non-05-v04",
+      "expected_miss": null,
+      "cause": "Testing whether the box works",
+      "diagnosis": "Checking the input field; no reference point in training."
+    },
+    {
+      "kind": "false alarm",
+      "id": "cur-non-05-v05",
+      "expected_miss": null,
+      "cause": "Testing whether the box works",
+      "diagnosis": "Digits only."
+    },
+    {
+      "kind": "false alarm",
+      "id": "cur-non-05-v03",
+      "expected_miss": null,
+      "cause": "Testing whether the box works",
+      "diagnosis": "The highest-scoring off-topic note: someone testing the field, at 0.73."
+    }
+  ]
+}
