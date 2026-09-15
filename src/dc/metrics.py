@@ -41,6 +41,7 @@ __all__ = [
     "Scores",
     "bootstrap_ci",
     "per_category",
+    "per_category_columns",
     "pr_auc",
     "score",
 ]
@@ -203,20 +204,40 @@ def per_category(
     ``game-frustration`` is the row to read: it is where a lexical model
     collapses, and where a useful one has to earn its keep.
     """
+    return per_category_columns(
+        [row.id for row in rows],
+        [row.label for row in rows],
+        [row.category.value for row in rows],
+        y_score,
+        threshold=threshold,
+        max_errors=max_errors,
+    )
+
+
+def per_category_columns(
+    ids: Sequence[str],
+    labels: Sequence[int],
+    categories: Sequence[str],
+    y_score: FloatArrayLike,
+    *,
+    threshold: float = 0.5,
+    max_errors: int = 5,
+) -> list[CategoryScore]:
+    """:func:`per_category` over plain columns — for predictions saved to disk."""
     scores = np.asarray(y_score, dtype=float)
-    if len(rows) != scores.size:
+    if not len(ids) == len(labels) == len(categories) == scores.size:
         raise ValueError("rows and scores differ in length")
 
-    by_category: dict[str, list[tuple[Row, float]]] = {}
-    for row, value in zip(rows, scores, strict=True):
-        by_category.setdefault(row.category.value, []).append((row, float(value)))
+    by_category: dict[str, list[tuple[str, int, float]]] = {}
+    for row_id, label, category, value in zip(ids, labels, categories, scores, strict=True):
+        by_category.setdefault(category, []).append((row_id, label, float(value)))
 
     out: list[CategoryScore] = []
     for category, members in sorted(by_category.items()):
-        positives = [(row, value) for row, value in members if row.label == 1]
-        negatives = [(row, value) for row, value in members if row.label == 0]
-        missed = [row.id for row, value in positives if value < threshold]
-        flagged = [row.id for row, value in negatives if value >= threshold]
+        positives = [(row_id, value) for row_id, label, value in members if label == 1]
+        negatives = [(row_id, value) for row_id, label, value in members if label == 0]
+        missed = [row_id for row_id, value in positives if value < threshold]
+        flagged = [row_id for row_id, value in negatives if value >= threshold]
         out.append(
             CategoryScore(
                 category=category,
