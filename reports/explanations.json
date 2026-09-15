@@ -1,0 +1,1094 @@
+{
+  "fidelity": {
+    "r2": 0.6831633131684629,
+    "route_agreement": 0.6498993963782697,
+    "folds": 5
+  },
+  "surrogate_alpha": 1.0,
+  "top_terms": {
+    "toward_distress": [
+      [
+        "nothing",
+        5.347942408737063
+      ],
+      [
+        "i",
+        4.876613104495736
+      ],
+      [
+        "been",
+        4.303633178265005
+      ],
+      [
+        "lately",
+        3.9279986742258113
+      ],
+      [
+        "keep",
+        3.4754561019612153
+      ],
+      [
+        "i'm",
+        3.312980695447238
+      ],
+      [
+        "day",
+        3.1523190162209134
+      ],
+      [
+        "just",
+        3.1407740877789223
+      ],
+      [
+        "would",
+        3.0877587518955227
+      ],
+      [
+        "up",
+        3.0537838017622603
+      ],
+      [
+        "everything",
+        2.983798806081813
+      ],
+      [
+        "anymore",
+        2.9551191737375913
+      ],
+      [
+        "to",
+        2.893955209708634
+      ],
+      [
+        "myself",
+        2.7987951426884545
+      ],
+      [
+        "of",
+        2.76027125132096
+      ]
+    ],
+    "away_from_distress": [
+      [
+        "level",
+        -5.308789175838759
+      ],
+      [
+        "stage",
+        -3.862322152805165
+      ],
+      [
+        "tries",
+        -2.980233622815381
+      ],
+      [
+        "that",
+        -2.882215524953999
+      ],
+      [
+        "board",
+        -2.5762956202055936
+      ],
+      [
+        "this",
+        -2.5555984490084382
+      ],
+      [
+        "one",
+        -2.45509834312542
+      ],
+      [
+        "was",
+        -2.3683004170603597
+      ],
+      [
+        "worst",
+        -2.300102348594187
+      ],
+      [
+        "qwerty",
+        -2.2543258289788803
+      ],
+      [
+        "beat",
+        -2.2170838857047883
+      ],
+      [
+        "47",
+        -2.1257921975442344
+      ],
+      [
+        "level 47",
+        -2.0319152823153557
+      ],
+      [
+        "it",
+        -2.011389005551228
+      ],
+      [
+        "this level",
+        -2.0015454237363945
+      ]
+    ]
+  },
+  "errors": [
+    {
+      "id": "cur-pair-06-game-v04",
+      "cause": "Resembles distress \u2014 first-person, ongoing-state language about the game",
+      "record": {
+        "text_sha256": "da680c9fc8b2b77d1e2f96b5a621b1ae0b6b0a02be320ab1012e4aecec55d298",
+        "feeling": "tired",
+        "score": 0.9942784163610818,
+        "route": "support",
+        "llm_consulted": false,
+        "low": 0.01814906857907772,
+        "high": 0.1627914011478424,
+        "artifact_sha256": "5709c6e15ed3c90eb5528f2c7b852abeaa2db7bebbba88c9068a08826bece224",
+        "embedder": "sentence-transformers/all-MiniLM-L6-v2@c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+        "neighbour_ids": [
+          "cur-pair-02-life-v05",
+          "cur-ds-08-v04",
+          "cur-pair-02-life",
+          "cur-pair-09-life-v01",
+          "cur-pair-09-life"
+        ]
+      },
+      "neighbour_distress_share": 1.0,
+      "toward_distress": [
+        [
+          "i",
+          1.0669950249553386
+        ],
+        [
+          "keep",
+          0.8654720045497107
+        ],
+        [
+          "don't",
+          0.7106476897401994
+        ]
+      ]
+    },
+    {
+      "id": "cur-pair-13-game-v05",
+      "cause": "Resembles distress \u2014 first-person, ongoing-state language about the game",
+      "record": {
+        "text_sha256": "badcc8fd066f2944384058275842da1feacda57151eb84ed40ba00b6bf23cc48",
+        "feeling": "tired",
+        "score": 0.4203565799159395,
+        "route": "support",
+        "llm_consulted": false,
+        "low": 0.01814906857907772,
+        "high": 0.1627914011478424,
+        "artifact_sha256": "5709c6e15ed3c90eb5528f2c7b852abeaa2db7bebbba88c9068a08826bece224",
+        "embedder": "sentence-transformers/all-MiniLM-L6-v2@c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+        "neighbour_ids": [
+          "cur-pair-05-life",
+          "cur-ds-05",
+          "cur-pair-13-life-v05",
+          "cur-mf-04-v04",
+          "cur-mf-01-v05"
+        ]
+      },
+      "neighbour_distress_share": 0.6,
+      "toward_distress": [
+        [
+          "i",
+          0.5522467770331894
+        ],
+        [
+          "all",
+          0.46354197686712034
+        ],
+        [
+          "doing",
+          0.3192110322362862
+        ]
+      ]
+    },
+    {
+      "id": "cur-pair-06-game-v02",
+      "cause": "Resembles distress \u2014 first-person, ongoing-state language about the game",
+      "record": {
+        "text_sha256": "544d6872bd354627ffa89195ac1c6a7614c0d62cce02aa98ec5582b906f12777",
+        "feeling": "tired",
+        "score": 0.4017904774449781,
+        "route": "support",
+        "llm_consulted": false,
+        "low": 0.01814906857907772,
+        "high": 0.1627914011478424,
+        "artifact_sha256": "5709c6e15ed3c90eb5528f2c7b852abeaa2db7bebbba88c9068a08826bece224",
+        "embedder": "sentence-transformers/all-MiniLM-L6-v2@c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+        "neighbour_ids": [
+          "cur-pair-03-life-v06",
+          "cur-pair-07-game-v05",
+          "cur-pair-03-life-v05",
+          "cur-pair-02-life",
+          "cur-pair-03-life-v01"
+        ]
+      },
+      "neighbour_distress_share": 0.8,
+      "toward_distress": [
+        [
+          "i'm",
+          1.003437253444764
+        ],
+        [
+          "out of",
+          0.8466218423158247
+        ],
+        [
+          "of",
+          0.6853889919376914
+        ]
+      ]
+    },
+    {
+      "id": "cur-pair-13-game-v01",
+      "cause": "Resembles distress \u2014 first-person, ongoing-state language about the game",
+      "record": {
+        "text_sha256": "087479db72689c9e5a5ada5e27ac8f34c53260ff8d98bf0dec3b1d6e27dff150",
+        "feeling": "tired",
+        "score": 0.34036606696596383,
+        "route": "support",
+        "llm_consulted": false,
+        "low": 0.01814906857907772,
+        "high": 0.1627914011478424,
+        "artifact_sha256": "5709c6e15ed3c90eb5528f2c7b852abeaa2db7bebbba88c9068a08826bece224",
+        "embedder": "sentence-transformers/all-MiniLM-L6-v2@c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+        "neighbour_ids": [
+          "cur-pair-13-life-v03",
+          "cur-pair-17-life",
+          "cur-gf-05-v01",
+          "cur-pair-13-life",
+          "cur-pair-17-life-v02"
+        ]
+      },
+      "neighbour_distress_share": 0.8,
+      "toward_distress": [
+        [
+          "myself",
+          0.7424552630229688
+        ],
+        [
+          "just",
+          0.6271745606606032
+        ],
+        [
+          "i",
+          0.5827180175516151
+        ]
+      ]
+    },
+    {
+      "id": "cur-nf-05-v06",
+      "cause": "Resembles distress \u2014 no clear cause in its words",
+      "record": {
+        "text_sha256": "6313e88d2922fb0a04492d04a0ecf88d4e134efbabeba02769fc26529ab5b93a",
+        "feeling": "proud",
+        "score": 0.6901072053791584,
+        "route": "support",
+        "llm_consulted": false,
+        "low": 0.01814906857907772,
+        "high": 0.1627914011478424,
+        "artifact_sha256": "5709c6e15ed3c90eb5528f2c7b852abeaa2db7bebbba88c9068a08826bece224",
+        "embedder": "sentence-transformers/all-MiniLM-L6-v2@c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+        "neighbour_ids": [
+          "cur-pair-18-life-v03",
+          "cur-ds-06-v02",
+          "cur-pair-08-game-v03",
+          "cur-nf-06-v01",
+          "cur-ds-08-v01"
+        ]
+      },
+      "neighbour_distress_share": 0.6,
+      "toward_distress": [
+        [
+          "all",
+          0.5378218868967383
+        ],
+        [
+          "to",
+          0.5209129596162233
+        ],
+        [
+          "out",
+          0.4865106705144443
+        ]
+      ]
+    },
+    {
+      "id": "cur-non-05-v03",
+      "cause": "Resembles ordinary notes \u2014 nothing about the game to pull the score down",
+      "record": {
+        "text_sha256": "7494c144a28fc1d28d87e0b3469fb77e147d51a4ad4b0b10f3df73013f4c8575",
+        "feeling": "custom",
+        "score": 0.7290827881990788,
+        "route": "support",
+        "llm_consulted": false,
+        "low": 0.01814906857907772,
+        "high": 0.1627914011478424,
+        "artifact_sha256": "5709c6e15ed3c90eb5528f2c7b852abeaa2db7bebbba88c9068a08826bece224",
+        "embedder": "sentence-transformers/all-MiniLM-L6-v2@c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+        "neighbour_ids": [
+          "cur-inj-06-v06",
+          "cur-inj-03",
+          "cur-ds-08-v04",
+          "cur-inj-07-v01",
+          "cur-inj-02-v05"
+        ]
+      },
+      "neighbour_distress_share": 0.2,
+      "toward_distress": [
+        [
+          "to",
+          1.0009114686253326
+        ],
+        [
+          "if",
+          0.8081975887232543
+        ]
+      ]
+    },
+    {
+      "id": "cur-non-06-v04",
+      "cause": "Resembles ordinary notes \u2014 nothing about the game to pull the score down",
+      "record": {
+        "text_sha256": "c6624f3c5ae3770068fdbcf708a4b290b0750181fa25b82917d2bf73ac281fea",
+        "feeling": "custom",
+        "score": 0.6547267401990828,
+        "route": "support",
+        "llm_consulted": false,
+        "low": 0.01814906857907772,
+        "high": 0.1627914011478424,
+        "artifact_sha256": "5709c6e15ed3c90eb5528f2c7b852abeaa2db7bebbba88c9068a08826bece224",
+        "embedder": "sentence-transformers/all-MiniLM-L6-v2@c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+        "neighbour_ids": [
+          "cur-ds-02-v06",
+          "cur-pair-18-game-v03",
+          "cur-pair-18-game",
+          "cur-pair-18-game-v04",
+          "cur-gf-06-v01"
+        ]
+      },
+      "neighbour_distress_share": 0.2,
+      "toward_distress": [
+        [
+          "just",
+          0.9669965975611898
+        ],
+        [
+          "glass",
+          0.44804033191051407
+        ],
+        [
+          "no",
+          0.42190883924840333
+        ]
+      ]
+    },
+    {
+      "id": "cur-non-06-v02",
+      "cause": "Resembles ordinary notes \u2014 nothing about the game to pull the score down",
+      "record": {
+        "text_sha256": "dfdb7e4f471043b10fa169c725b3d09c430adb0f4f2fae1aa9eb8ad0a5e09188",
+        "feeling": "custom",
+        "score": 0.6238683614229004,
+        "route": "support",
+        "llm_consulted": false,
+        "low": 0.01814906857907772,
+        "high": 0.1627914011478424,
+        "artifact_sha256": "5709c6e15ed3c90eb5528f2c7b852abeaa2db7bebbba88c9068a08826bece224",
+        "embedder": "sentence-transformers/all-MiniLM-L6-v2@c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+        "neighbour_ids": [
+          "cur-gf-06-v01",
+          "cur-pair-18-game",
+          "cur-gf-08-v03",
+          "cur-pair-12-life-v05",
+          "cur-pair-14-game-v01"
+        ]
+      },
+      "neighbour_distress_share": 0.2,
+      "toward_distress": [
+        [
+          "to",
+          0.8367368634281236
+        ],
+        [
+          "and",
+          0.5960533792630806
+        ],
+        [
+          "phone",
+          0.06448053540276323
+        ]
+      ]
+    },
+    {
+      "id": "cur-non-06-v05",
+      "cause": "Resembles ordinary notes \u2014 nothing about the game to pull the score down",
+      "record": {
+        "text_sha256": "1c49fa651ba781dd53f5e794ee4c139efe6fd5cdc1f4e2d80c4763f0d755d40f",
+        "feeling": "custom",
+        "score": 0.49807598835069666,
+        "route": "support",
+        "llm_consulted": false,
+        "low": 0.01814906857907772,
+        "high": 0.1627914011478424,
+        "artifact_sha256": "5709c6e15ed3c90eb5528f2c7b852abeaa2db7bebbba88c9068a08826bece224",
+        "embedder": "sentence-transformers/all-MiniLM-L6-v2@c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+        "neighbour_ids": [
+          "cur-ds-08-v03",
+          "cur-gf-08-v01",
+          "cur-gf-04-v03",
+          "cur-gf-13-v02",
+          "cur-pair-14-life-v04"
+        ]
+      },
+      "neighbour_distress_share": 0.4,
+      "toward_distress": [
+        [
+          "right",
+          1.1003297473362712
+        ],
+        [
+          "when",
+          0.16931004381406892
+        ]
+      ]
+    },
+    {
+      "id": "non-2",
+      "cause": "Resembles ordinary notes \u2014 nothing about the game to pull the score down",
+      "record": {
+        "text_sha256": "0e92fefdf20548374178a98c416eb5efd5f558847a06a00a466848e7e20d4748",
+        "feeling": "custom",
+        "score": 0.33038428629699385,
+        "route": "support",
+        "llm_consulted": false,
+        "low": 0.01814906857907772,
+        "high": 0.1627914011478424,
+        "artifact_sha256": "5709c6e15ed3c90eb5528f2c7b852abeaa2db7bebbba88c9068a08826bece224",
+        "embedder": "sentence-transformers/all-MiniLM-L6-v2@c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+        "neighbour_ids": [
+          "cur-ds-01-v01",
+          "cur-pair-14-game-v04",
+          "cur-pair-17-life-v01",
+          "cur-non-08-v06",
+          "cur-nf-10"
+        ]
+      },
+      "neighbour_distress_share": 0.4,
+      "toward_distress": [
+        [
+          "in",
+          1.3406553824307916
+        ],
+        [
+          "tomorrow",
+          0.5774737902828802
+        ]
+      ]
+    },
+    {
+      "id": "cur-inj-04-v06",
+      "cause": "Resembles ordinary notes \u2014 nothing about the game to pull the score down",
+      "record": {
+        "text_sha256": "110faad56acdd1d8b1ba2e4a57c623ff8361c2227a2f4fd510413d511c892764",
+        "feeling": "custom",
+        "score": 0.3210065780655897,
+        "route": "support",
+        "llm_consulted": false,
+        "low": 0.01814906857907772,
+        "high": 0.1627914011478424,
+        "artifact_sha256": "5709c6e15ed3c90eb5528f2c7b852abeaa2db7bebbba88c9068a08826bece224",
+        "embedder": "sentence-transformers/all-MiniLM-L6-v2@c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+        "neighbour_ids": [
+          "cur-inj-06-v06",
+          "cur-inj-02-v04",
+          "cur-inj-06-v01",
+          "cur-inj-03-v01",
+          "cur-inj-02-v01"
+        ]
+      },
+      "neighbour_distress_share": 0.0,
+      "toward_distress": [
+        [
+          "back",
+          0.5273073264323976
+        ],
+        [
+          "and",
+          0.3554889114904685
+        ],
+        [
+          "me",
+          0.34936510643585256
+        ]
+      ]
+    },
+    {
+      "id": "cur-inj-05-v03",
+      "cause": "Resembles ordinary notes \u2014 nothing about the game to pull the score down",
+      "record": {
+        "text_sha256": "8291718d4360d3675782bb75db0385c05733fafb72f016aeb6dd994cda14362b",
+        "feeling": "custom",
+        "score": 0.26611103302162775,
+        "route": "support",
+        "llm_consulted": false,
+        "low": 0.01814906857907772,
+        "high": 0.1627914011478424,
+        "artifact_sha256": "5709c6e15ed3c90eb5528f2c7b852abeaa2db7bebbba88c9068a08826bece224",
+        "embedder": "sentence-transformers/all-MiniLM-L6-v2@c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+        "neighbour_ids": [
+          "cur-inj-03-v01",
+          "cur-inj-01-v06",
+          "cur-inj-06-v01",
+          "cur-gf-05-v04",
+          "cur-inj-08-v02"
+        ]
+      },
+      "neighbour_distress_share": 0.0,
+      "toward_distress": [
+        [
+          "of",
+          1.0879659175335346
+        ]
+      ]
+    },
+    {
+      "id": "cur-non-06-v01",
+      "cause": "Resembles ordinary notes \u2014 nothing about the game to pull the score down",
+      "record": {
+        "text_sha256": "57f2e48c646cfc468b607ce503e50b8dc805491143f7f5b517aa6b7e14615b83",
+        "feeling": "custom",
+        "score": 0.2376751423580185,
+        "route": "support",
+        "llm_consulted": false,
+        "low": 0.01814906857907772,
+        "high": 0.1627914011478424,
+        "artifact_sha256": "5709c6e15ed3c90eb5528f2c7b852abeaa2db7bebbba88c9068a08826bece224",
+        "embedder": "sentence-transformers/all-MiniLM-L6-v2@c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+        "neighbour_ids": [
+          "cur-pair-02-life-v06",
+          "cur-pair-01-game-v05",
+          "cur-inj-02-v06",
+          "cur-mf-05-v06",
+          "cur-pair-03-game"
+        ]
+      },
+      "neighbour_distress_share": 0.2,
+      "toward_distress": [
+        [
+          "i",
+          0.7107971121779589
+        ],
+        [
+          "and i",
+          0.7044141775311962
+        ],
+        [
+          "does",
+          0.58452495624598
+        ]
+      ]
+    },
+    {
+      "id": "cur-non-05-v05",
+      "cause": "Resembles ordinary notes \u2014 nothing about the game to pull the score down",
+      "record": {
+        "text_sha256": "4981aa0a50d563040519e9032b5d74367b1d129e239a1ba82667a57333866494",
+        "feeling": "custom",
+        "score": 0.19556954390228248,
+        "route": "support",
+        "llm_consulted": false,
+        "low": 0.01814906857907772,
+        "high": 0.1627914011478424,
+        "artifact_sha256": "5709c6e15ed3c90eb5528f2c7b852abeaa2db7bebbba88c9068a08826bece224",
+        "embedder": "sentence-transformers/all-MiniLM-L6-v2@c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+        "neighbour_ids": [
+          "cur-non-04-v06",
+          "cur-non-01-v02",
+          "cur-non-02",
+          "cur-non-08-v05",
+          "cur-inj-01-v03"
+        ]
+      },
+      "neighbour_distress_share": 0.0,
+      "toward_distress": []
+    },
+    {
+      "id": "cur-non-05-v04",
+      "cause": "Resembles ordinary notes \u2014 nothing about the game to pull the score down",
+      "record": {
+        "text_sha256": "a3f0d399a8d4d4a069085e1342e1923d4122d1b9c71b7e9ea250194a0ca6f87e",
+        "feeling": "custom",
+        "score": 0.1697216634651107,
+        "route": "support",
+        "llm_consulted": false,
+        "low": 0.01814906857907772,
+        "high": 0.1627914011478424,
+        "artifact_sha256": "5709c6e15ed3c90eb5528f2c7b852abeaa2db7bebbba88c9068a08826bece224",
+        "embedder": "sentence-transformers/all-MiniLM-L6-v2@c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+        "neighbour_ids": [
+          "cur-non-01-v06",
+          "cur-non-02-v06",
+          "cur-inj-07-v04",
+          "cur-gf-05-v06",
+          "cur-nf-01"
+        ]
+      },
+      "neighbour_distress_share": 0.0,
+      "toward_distress": [
+        [
+          "does",
+          0.6333550076508022
+        ],
+        [
+          "work",
+          0.6089524536826941
+        ],
+        [
+          "hello",
+          0.07048671221079146
+        ]
+      ]
+    },
+    {
+      "id": "cur-nf-05-v05",
+      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
+      "record": {
+        "text_sha256": "55630b15b1aca8a6155481a7e0e2ae66528dcd148646318b81a130438b2704ee",
+        "feeling": "proud",
+        "score": 0.4304583577701588,
+        "route": "support",
+        "llm_consulted": false,
+        "low": 0.01814906857907772,
+        "high": 0.1627914011478424,
+        "artifact_sha256": "5709c6e15ed3c90eb5528f2c7b852abeaa2db7bebbba88c9068a08826bece224",
+        "embedder": "sentence-transformers/all-MiniLM-L6-v2@c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+        "neighbour_ids": [
+          "cur-mf-05-v06",
+          "cur-nf-07-v04",
+          "cur-mf-04-v04",
+          "cur-mf-08-v04",
+          "cur-mf-07-v05"
+        ]
+      },
+      "neighbour_distress_share": 0.0,
+      "toward_distress": [
+        [
+          "without",
+          0.483780195449513
+        ],
+        [
+          "lives",
+          0.138167455365714
+        ],
+        [
+          "for",
+          0.11908937027272037
+        ]
+      ]
+    },
+    {
+      "id": "gf-9",
+      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
+      "record": {
+        "text_sha256": "ca00748eca10e413e742c6766f41a6fa4138a4370a10251392dabbf4a99e3037",
+        "feeling": "custom",
+        "score": 0.4262804043160732,
+        "route": "support",
+        "llm_consulted": false,
+        "low": 0.01814906857907772,
+        "high": 0.1627914011478424,
+        "artifact_sha256": "5709c6e15ed3c90eb5528f2c7b852abeaa2db7bebbba88c9068a08826bece224",
+        "embedder": "sentence-transformers/all-MiniLM-L6-v2@c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+        "neighbour_ids": [
+          "cur-gf-06",
+          "cur-mf-03-v02",
+          "cur-mf-01-v06",
+          "cur-mf-08-v01",
+          "cur-nf-06-v04"
+        ]
+      },
+      "neighbour_distress_share": 0.0,
+      "toward_distress": [
+        [
+          "i",
+          0.6294894867785157
+        ],
+        [
+          "like",
+          0.35200106698004074
+        ],
+        [
+          "finally cleared",
+          0.05343418155207205
+        ]
+      ]
+    },
+    {
+      "id": "nff-relieved",
+      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
+      "record": {
+        "text_sha256": "59f3705ce2f3a1f41b092b8acd119d2fdf00714f36a37618511392f4450716ec",
+        "feeling": "relieved",
+        "score": 0.4052700618374301,
+        "route": "support",
+        "llm_consulted": false,
+        "low": 0.01814906857907772,
+        "high": 0.1627914011478424,
+        "artifact_sha256": "5709c6e15ed3c90eb5528f2c7b852abeaa2db7bebbba88c9068a08826bece224",
+        "embedder": "sentence-transformers/all-MiniLM-L6-v2@c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+        "neighbour_ids": [
+          "cur-nf-03",
+          "cur-nf-10-v05",
+          "cur-pair-02-game-v02",
+          "cur-mf-07",
+          "cur-mf-08-v04"
+        ]
+      },
+      "neighbour_distress_share": 0.0,
+      "toward_distress": [
+        [
+          "i",
+          0.5632894282523027
+        ],
+        [
+          "get",
+          0.24543298685217133
+        ],
+        [
+          "honestly",
+          0.19763325052797162
+        ]
+      ]
+    },
+    {
+      "id": "gf-7",
+      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
+      "record": {
+        "text_sha256": "ba2da373b857079207833d758d4764d2f06fa76c76bd07d0ba0ac47f6e283c5b",
+        "feeling": "frustrated",
+        "score": 0.295962320915562,
+        "route": "support",
+        "llm_consulted": false,
+        "low": 0.01814906857907772,
+        "high": 0.1627914011478424,
+        "artifact_sha256": "5709c6e15ed3c90eb5528f2c7b852abeaa2db7bebbba88c9068a08826bece224",
+        "embedder": "sentence-transformers/all-MiniLM-L6-v2@c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+        "neighbour_ids": [
+          "cur-pair-15-game",
+          "cur-nf-10-v03",
+          "cur-pair-11-game-v02",
+          "cur-pair-15-life",
+          "cur-mf-03"
+        ]
+      },
+      "neighbour_distress_share": 0.2,
+      "toward_distress": [
+        [
+          "i'm",
+          0.7841040287842884
+        ],
+        [
+          "i'm so",
+          0.48996403228870833
+        ],
+        [
+          "and",
+          0.35388907496115507
+        ]
+      ]
+    },
+    {
+      "id": "mix-1",
+      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
+      "record": {
+        "text_sha256": "5cbb7267adac00a631cb6293fc2c9fddc131e129dce105e1a4d40cc299e85e4b",
+        "feeling": "custom",
+        "score": 0.28949485957689364,
+        "route": "support",
+        "llm_consulted": false,
+        "low": 0.01814906857907772,
+        "high": 0.1627914011478424,
+        "artifact_sha256": "5709c6e15ed3c90eb5528f2c7b852abeaa2db7bebbba88c9068a08826bece224",
+        "embedder": "sentence-transformers/all-MiniLM-L6-v2@c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+        "neighbour_ids": [
+          "cur-pair-16-game-v06",
+          "cur-pair-02-life-v06",
+          "cur-mf-08",
+          "cur-pair-06-life-v05",
+          "cur-mf-04"
+        ]
+      },
+      "neighbour_distress_share": 0.4,
+      "toward_distress": [
+        [
+          "exhausted",
+          0.887957864547312
+        ]
+      ]
+    },
+    {
+      "id": "cur-pair-12-game-v04",
+      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
+      "record": {
+        "text_sha256": "b5b3a3036ac42aa9b14e7faa71f2b81255360a6d835fa89171df15aa62043119",
+        "feeling": "disappointed",
+        "score": 0.26732392086391576,
+        "route": "support",
+        "llm_consulted": false,
+        "low": 0.01814906857907772,
+        "high": 0.1627914011478424,
+        "artifact_sha256": "5709c6e15ed3c90eb5528f2c7b852abeaa2db7bebbba88c9068a08826bece224",
+        "embedder": "sentence-transformers/all-MiniLM-L6-v2@c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+        "neighbour_ids": [
+          "cur-pair-15-game-v02",
+          "cur-pair-12-life-v01",
+          "cur-nf-01-v06",
+          "cur-gf-06-v04",
+          "cur-nf-07-v01"
+        ]
+      },
+      "neighbour_distress_share": 0.2,
+      "toward_distress": [
+        [
+          "keep",
+          0.8323758733676629
+        ],
+        [
+          "anymore",
+          0.7230259775531446
+        ],
+        [
+          "i",
+          0.6060858459832258
+        ]
+      ]
+    },
+    {
+      "id": "cur-pair-13-game-v02",
+      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
+      "record": {
+        "text_sha256": "c686782beb9bfe71ff61f01ad6c20d7c50e50dbd05ed90c095c087bf3ab4f740",
+        "feeling": "tired",
+        "score": 0.2532678430329648,
+        "route": "support",
+        "llm_consulted": false,
+        "low": 0.01814906857907772,
+        "high": 0.1627914011478424,
+        "artifact_sha256": "5709c6e15ed3c90eb5528f2c7b852abeaa2db7bebbba88c9068a08826bece224",
+        "embedder": "sentence-transformers/all-MiniLM-L6-v2@c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+        "neighbour_ids": [
+          "cur-pair-07-game-v04",
+          "cur-nf-09-v03",
+          "cur-pair-01-game-v02",
+          "cur-pair-07-game",
+          "cur-pair-10-game"
+        ]
+      },
+      "neighbour_distress_share": 0.0,
+      "toward_distress": [
+        [
+          "been",
+          0.7841891368744809
+        ],
+        [
+          "to",
+          0.4036806157689636
+        ],
+        [
+          "days",
+          0.37694972534697613
+        ]
+      ]
+    },
+    {
+      "id": "mix-6",
+      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
+      "record": {
+        "text_sha256": "11cb2827d02a61f962902ae4a14a1e98bff3e24766217e1537cf79b7396ab0be",
+        "feeling": "relieved",
+        "score": 0.21237132871211287,
+        "route": "support",
+        "llm_consulted": false,
+        "low": 0.01814906857907772,
+        "high": 0.1627914011478424,
+        "artifact_sha256": "5709c6e15ed3c90eb5528f2c7b852abeaa2db7bebbba88c9068a08826bece224",
+        "embedder": "sentence-transformers/all-MiniLM-L6-v2@c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+        "neighbour_ids": [
+          "cur-mf-05-v05",
+          "cur-mf-04-v03",
+          "cur-pair-14-life-v01",
+          "cur-mf-07-v01",
+          "cur-mf-08-v01"
+        ]
+      },
+      "neighbour_distress_share": 0.2,
+      "toward_distress": [
+        [
+          "is",
+          0.29808395349576305
+        ],
+        [
+          "over",
+          0.23555035884055597
+        ],
+        [
+          "my",
+          0.22772000624473607
+        ]
+      ]
+    },
+    {
+      "id": "cur-mf-02-v02",
+      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
+      "record": {
+        "text_sha256": "d14bb14db971ae6330ce2e1fa4b7d8545c09d643ff21470e2a4a237374d8b9c6",
+        "feeling": "relieved",
+        "score": 0.18610558157655188,
+        "route": "support",
+        "llm_consulted": false,
+        "low": 0.01814906857907772,
+        "high": 0.1627914011478424,
+        "artifact_sha256": "5709c6e15ed3c90eb5528f2c7b852abeaa2db7bebbba88c9068a08826bece224",
+        "embedder": "sentence-transformers/all-MiniLM-L6-v2@c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+        "neighbour_ids": [
+          "cur-mf-01-v01",
+          "cur-mf-08-v03",
+          "cur-mf-04-v04",
+          "cur-mf-05-v06",
+          "cur-mf-03"
+        ]
+      },
+      "neighbour_distress_share": 0.0,
+      "toward_distress": [
+        [
+          "feel",
+          0.8025015436217228
+        ],
+        [
+          "just",
+          0.6524074644794705
+        ],
+        [
+          "i",
+          0.6061623161770465
+        ]
+      ]
+    },
+    {
+      "id": "cur-pair-13-game-v03",
+      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
+      "record": {
+        "text_sha256": "21c857ab3bd9f763e3ee36ed11929d300430d2eddf59d355a570ca54d5337e50",
+        "feeling": "tired",
+        "score": 0.18276118707210734,
+        "route": "support",
+        "llm_consulted": false,
+        "low": 0.01814906857907772,
+        "high": 0.1627914011478424,
+        "artifact_sha256": "5709c6e15ed3c90eb5528f2c7b852abeaa2db7bebbba88c9068a08826bece224",
+        "embedder": "sentence-transformers/all-MiniLM-L6-v2@c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+        "neighbour_ids": [
+          "cur-nf-10-v02",
+          "cur-nf-07-v01",
+          "cur-mf-01-v06",
+          "cur-mf-08-v01",
+          "cur-mf-01"
+        ]
+      },
+      "neighbour_distress_share": 0.0,
+      "toward_distress": [
+        [
+          "to",
+          0.5026860285110977
+        ],
+        [
+          "about",
+          0.4477434658454641
+        ],
+        [
+          "no one",
+          0.4432829110488427
+        ]
+      ]
+    },
+    {
+      "id": "cur-gf-11",
+      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
+      "record": {
+        "text_sha256": "0c6ed06c6b4ea49ff091ee258e890322b0669926de25bf01ef0457c5373eeaa6",
+        "feeling": "frustrated",
+        "score": 0.17409102076336588,
+        "route": "support",
+        "llm_consulted": false,
+        "low": 0.01814906857907772,
+        "high": 0.1627914011478424,
+        "artifact_sha256": "5709c6e15ed3c90eb5528f2c7b852abeaa2db7bebbba88c9068a08826bece224",
+        "embedder": "sentence-transformers/all-MiniLM-L6-v2@c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+        "neighbour_ids": [
+          "cur-pair-15-game-v01",
+          "cur-pair-03-game-v04",
+          "cur-nf-10-v06",
+          "cur-nf-07-v01",
+          "cur-gf-06-v02"
+        ]
+      },
+      "neighbour_distress_share": 0.0,
+      "toward_distress": [
+        [
+          "i'm",
+          0.852220295992973
+        ],
+        [
+          "app",
+          0.24215915467730145
+        ],
+        [
+          "then",
+          0.2412139215882734
+        ]
+      ]
+    },
+    {
+      "id": "mix-2",
+      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
+      "record": {
+        "text_sha256": "a62e0baebd1c6238587c571bab050100b4b061320b742a3d995d80d3c8a665fd",
+        "feeling": "proud",
+        "score": 0.16788764038317738,
+        "route": "support",
+        "llm_consulted": false,
+        "low": 0.01814906857907772,
+        "high": 0.1627914011478424,
+        "artifact_sha256": "5709c6e15ed3c90eb5528f2c7b852abeaa2db7bebbba88c9068a08826bece224",
+        "embedder": "sentence-transformers/all-MiniLM-L6-v2@c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+        "neighbour_ids": [
+          "cur-mf-01",
+          "cur-mf-08-v04",
+          "cur-mf-04",
+          "cur-mf-04-v03",
+          "cur-mf-03-v01"
+        ]
+      },
+      "neighbour_distress_share": 0.0,
+      "toward_distress": [
+        [
+          "i",
+          0.6279336081331677
+        ],
+        [
+          "of",
+          0.5503588855288636
+        ],
+        [
+          "kind of",
+          0.3978967093829155
+        ]
+      ]
+    }
+  ]
+}

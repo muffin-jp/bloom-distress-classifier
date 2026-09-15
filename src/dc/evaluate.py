@@ -3,9 +3,10 @@
 Two halves, kept apart on purpose.
 
 **Scoring** — :func:`score_test_split` — is the only code in this repository that
-reads a test row's text. It runs the shipped artifact over the test split, saves
-one prediction per row, and records the look in the ledger *before* any number is
-shown.
+scores the test split. It runs the shipped artifact over it, saves one prediction
+per row, and records the look in the ledger *before* any number is shown. The only
+other reader of test text is ``dc.explain --errors``, which explains the recorded
+errors from those saved predictions and never scores a row or computes a metric.
 
 **Everything else** — metrics, intervals, targets, the error tables — reads the
 saved predictions. A bug in the report is fixed by re-rendering with

@@ -347,192 +347,192 @@
   "errors": [
     {
       "kind": "false alarm",
-      "id": "cur-non-06-v01",
-      "expected_miss": null,
-      "cause": "Coherent off-topic text \u2014 training had only gibberish",
-      "diagnosis": "Off-topic opinion ending in a death idiom; plausibly the one row where the idiom, not the topic, drives the score."
-    },
-    {
-      "kind": "false alarm",
-      "id": "non-2",
-      "expected_miss": null,
-      "cause": "Coherent off-topic text \u2014 training had only gibberish",
-      "diagnosis": "A golden case: a question meant for a different app."
-    },
-    {
-      "kind": "false alarm",
-      "id": "cur-non-06-v05",
-      "expected_miss": null,
-      "cause": "Coherent off-topic text \u2014 training had only gibberish",
-      "diagnosis": "An everyday observation; nothing in training resembled it."
-    },
-    {
-      "kind": "false alarm",
-      "id": "cur-non-06-v02",
-      "expected_miss": null,
-      "cause": "Coherent off-topic text \u2014 training had only gibberish",
-      "diagnosis": "A shopping list at 0.62: the clearest sign the model has no notion of off-topic."
-    },
-    {
-      "kind": "false alarm",
-      "id": "cur-non-06-v04",
-      "expected_miss": null,
-      "cause": "Coherent off-topic text \u2014 training had only gibberish",
-      "diagnosis": "An everyday anecdote at 0.66; coherent off-topic English is outside the training data."
-    },
-    {
-      "kind": "false alarm",
-      "id": "cur-pair-13-game-v03",
-      "expected_miss": null,
-      "cause": "Matched pair split \u2014 only the life frame was trained",
-      "diagnosis": "Isolation, game frame: \"no one to text\" was only ever seen in the life frame, as distress."
-    },
-    {
-      "kind": "false alarm",
-      "id": "cur-pair-13-game-v02",
-      "expected_miss": null,
-      "cause": "Matched pair split \u2014 only the life frame was trained",
-      "diagnosis": "Isolation, game frame: \"no one to ask for help\" is about a level; the phrase was trained only as distress."
-    },
-    {
-      "kind": "false alarm",
-      "id": "cur-pair-12-game-v04",
-      "expected_miss": null,
-      "cause": "Matched pair split \u2014 only the life frame was trained",
-      "diagnosis": "Numbness, game frame: losing interest in a game reads like anhedonia; only the life frame was trained."
-    },
-    {
-      "kind": "false alarm",
       "id": "cur-pair-13-game-v01",
       "expected_miss": null,
-      "cause": "Matched pair split \u2014 only the life frame was trained",
-      "diagnosis": "Isolation, game frame: \"nobody\" and \"by myself\" carry the score; the context is a game with no co-players."
+      "cause": "Resembles distress \u2014 first-person, ongoing-state language about the game",
+      "diagnosis": "No one to play with, said in the first person. 80% of its nearest training notes are distress; surrogate words: \"myself\", \"just\", \"i\"."
     },
     {
       "kind": "false alarm",
       "id": "cur-pair-06-game-v02",
       "expected_miss": null,
-      "cause": "Matched pair split \u2014 only the life frame was trained",
-      "diagnosis": "Exhaustion, game frame: \"out of energy\" was trained only in the life frame."
+      "cause": "Resembles distress \u2014 first-person, ongoing-state language about the game",
+      "diagnosis": "\"i'm out of energy for it\" \u2014 exhaustion said about attempts at a level. 80% of its nearest training notes are distress; surrogate words: \"i'm\", \"out of\", \"of\"."
     },
     {
       "kind": "false alarm",
       "id": "cur-pair-13-game-v05",
       "expected_miss": null,
-      "cause": "Matched pair split \u2014 only the life frame was trained",
-      "diagnosis": "Isolation, game frame: wanting a co-player, scored as loneliness."
+      "cause": "Resembles distress \u2014 first-person, ongoing-state language about the game",
+      "diagnosis": "Wanting a co-player, said in the first person. 60% of its nearest training notes are distress; surrogate words: \"i\", \"all\", \"doing\"."
     },
     {
       "kind": "false alarm",
       "id": "cur-pair-06-game-v04",
       "expected_miss": null,
-      "cause": "Matched pair split \u2014 only the life frame was trained",
-      "diagnosis": "Exhaustion, game frame, and the highest score of any error: only \"starting over\" hints at a game. Genuinely ambiguous without context \u2014 the most defensible error here."
-    },
-    {
-      "kind": "false alarm",
-      "id": "mix-2",
-      "expected_miss": null,
-      "cause": "Negative feeling inside a mixed note",
-      "diagnosis": "\"Sad\" that a game ended; just above high."
-    },
-    {
-      "kind": "false alarm",
-      "id": "cur-mf-02-v02",
-      "expected_miss": null,
-      "cause": "Negative feeling inside a mixed note",
-      "diagnosis": "\"Feel empty\" is the numbness vocabulary again, attached to a finished game."
-    },
-    {
-      "kind": "false alarm",
-      "id": "mix-6",
-      "expected_miss": null,
-      "cause": "Negative feeling inside a mixed note",
-      "diagnosis": "A tiredness idiom inside relief."
-    },
-    {
-      "kind": "false alarm",
-      "id": "mix-1",
-      "expected_miss": null,
-      "cause": "Negative feeling inside a mixed note",
-      "diagnosis": "Two words; \"exhausted\" outweighs \"happy\"."
-    },
-    {
-      "kind": "false alarm",
-      "id": "nff-relieved",
-      "expected_miss": null,
-      "cause": "Positive note that uses struggle vocabulary",
-      "diagnosis": "A golden case: \"never get past\" is hopelessness phrasing, resolved in the same sentence."
-    },
-    {
-      "kind": "false alarm",
-      "id": "cur-nf-05-v05",
-      "expected_miss": null,
-      "cause": "Positive note that uses struggle vocabulary",
-      "diagnosis": "Positive; \"asking for extra lives\" is the only struggle-adjacent phrase."
+      "cause": "Resembles distress \u2014 first-person, ongoing-state language about the game",
+      "diagnosis": "The highest score of any error, and genuinely ambiguous without the game context: only \"starting over\" hints at a game. Its nearest notes are distress from other modes, not its own pair. 100% of its nearest training notes are distress; surrogate words: \"i\", \"keep\", \"don't\"."
     },
     {
       "kind": "false alarm",
       "id": "cur-nf-05-v06",
       "expected_miss": null,
-      "cause": "Positive note that uses struggle vocabulary",
-      "diagnosis": "Plainly positive, yet 0.69; \"took me all week\" is the only effort language. Not well explained by the text \u2014 a sign of how thin positive-note coverage is."
+      "cause": "Resembles distress \u2014 no clear cause in its words",
+      "diagnosis": "Plainly positive; its words are function words and its neighbours are mixed. Not explained by either mechanism. 60% of its nearest training notes are distress; surrogate words: \"all\", \"to\", \"out\"."
     },
     {
       "kind": "false alarm",
       "id": "cur-inj-05-v03",
       "expected_miss": null,
-      "cause": "Prompt injection",
-      "diagnosis": "An injection that works: routing words (\"severe\", \"notify_support\") pushed the score over high."
+      "cause": "Resembles ordinary notes \u2014 nothing about the game to pull the score down",
+      "diagnosis": "An injection payload. Nothing implicates its words (\"severe\", \"notify_support\"), though the surrogate cannot see words that are rare in training, so it cannot rule them out either. 0% of its nearest training notes are distress; surrogate words: \"of\"."
     },
     {
       "kind": "false alarm",
       "id": "cur-inj-04-v06",
       "expected_miss": null,
-      "cause": "Prompt injection",
-      "diagnosis": "A meta request with no emotional content; out of distribution rather than distress-like."
-    },
-    {
-      "kind": "false alarm",
-      "id": "cur-gf-11",
-      "expected_miss": null,
-      "cause": "Quitting language about the game",
-      "diagnosis": "Deleting the app, not giving up on anything else; just above high."
-    },
-    {
-      "kind": "false alarm",
-      "id": "gf-7",
-      "expected_miss": null,
-      "cause": "Quitting language about the game",
-      "diagnosis": "\"I'm so done\" \u2014 the finality idiom, here about one level."
-    },
-    {
-      "kind": "false alarm",
-      "id": "gf-9",
-      "expected_miss": null,
-      "cause": "Quitting language about the game",
-      "diagnosis": "A cleared stage after \"rage quit\"; frustration already resolved, scored on the anger words."
+      "cause": "Resembles ordinary notes \u2014 nothing about the game to pull the score down",
+      "diagnosis": "A meta request with no game and no emotional content. 0% of its nearest training notes are distress; surrogate words: \"back\", \"and\", \"me\"."
     },
     {
       "kind": "false alarm",
       "id": "cur-non-05-v04",
       "expected_miss": null,
-      "cause": "Testing whether the box works",
-      "diagnosis": "Checking the input field; no reference point in training."
+      "cause": "Resembles ordinary notes \u2014 nothing about the game to pull the score down",
+      "diagnosis": "Someone testing whether the box works. 0% of its nearest training notes are distress; surrogate words: \"does\", \"work\", \"hello\"."
     },
     {
       "kind": "false alarm",
       "id": "cur-non-05-v05",
       "expected_miss": null,
-      "cause": "Testing whether the box works",
-      "diagnosis": "Digits only."
+      "cause": "Resembles ordinary notes \u2014 nothing about the game to pull the score down",
+      "diagnosis": "Digits only; the surrogate has no words to attribute. 0% of its nearest training notes are distress; surrogate words: none it can see."
+    },
+    {
+      "kind": "false alarm",
+      "id": "cur-non-06-v01",
+      "expected_miss": null,
+      "cause": "Resembles ordinary notes \u2014 nothing about the game to pull the score down",
+      "diagnosis": "An off-topic opinion. The death idiom is not among the words that move its score. 20% of its nearest training notes are distress; surrogate words: \"i\", \"and i\", \"does\"."
+    },
+    {
+      "kind": "false alarm",
+      "id": "non-2",
+      "expected_miss": null,
+      "cause": "Resembles ordinary notes \u2014 nothing about the game to pull the score down",
+      "diagnosis": "A golden case: a question meant for another app. \"tomorrow\" appears in distress training notes. 40% of its nearest training notes are distress; surrogate words: \"in\", \"tomorrow\"."
+    },
+    {
+      "kind": "false alarm",
+      "id": "cur-non-06-v05",
+      "expected_miss": null,
+      "cause": "Resembles ordinary notes \u2014 nothing about the game to pull the score down",
+      "diagnosis": "An everyday observation with no game words. 40% of its nearest training notes are distress; surrogate words: \"right\", \"when\"."
+    },
+    {
+      "kind": "false alarm",
+      "id": "cur-non-06-v02",
+      "expected_miss": null,
+      "cause": "Resembles ordinary notes \u2014 nothing about the game to pull the score down",
+      "diagnosis": "A shopping list; nothing in it is about the game or the player. 20% of its nearest training notes are distress; surrogate words: \"to\", \"and\", \"phone\"."
+    },
+    {
+      "kind": "false alarm",
+      "id": "cur-non-06-v04",
+      "expected_miss": null,
+      "cause": "Resembles ordinary notes \u2014 nothing about the game to pull the score down",
+      "diagnosis": "An everyday anecdote with no game words. 20% of its nearest training notes are distress; surrogate words: \"just\", \"glass\", \"no\"."
     },
     {
       "kind": "false alarm",
       "id": "cur-non-05-v03",
       "expected_miss": null,
-      "cause": "Testing whether the box works",
-      "diagnosis": "The highest-scoring off-topic note: someone testing the field, at 0.73."
+      "cause": "Resembles ordinary notes \u2014 nothing about the game to pull the score down",
+      "diagnosis": "Someone testing whether the field saves. 20% of its nearest training notes are distress; surrogate words: \"to\", \"if\"."
+    },
+    {
+      "kind": "false alarm",
+      "id": "cur-gf-11",
+      "expected_miss": null,
+      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
+      "diagnosis": "Deleting the app; the first-person \"I'm\" carries the score. 0% of its nearest training notes are distress; surrogate words: \"i'm\", \"app\", \"then\"."
+    },
+    {
+      "kind": "false alarm",
+      "id": "cur-pair-13-game-v03",
+      "expected_miss": null,
+      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
+      "diagnosis": "\"no one\" about having nobody to tell; just over the cutoff. 0% of its nearest training notes are distress; surrogate words: \"to\", \"about\", \"no one\"."
+    },
+    {
+      "kind": "false alarm",
+      "id": "cur-pair-13-game-v02",
+      "expected_miss": null,
+      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
+      "diagnosis": "\"been\" and \"days\" \u2014 duration words about a level. 0% of its nearest training notes are distress; surrogate words: \"been\", \"to\", \"days\"."
+    },
+    {
+      "kind": "false alarm",
+      "id": "cur-pair-12-game-v04",
+      "expected_miss": null,
+      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
+      "diagnosis": "\"keep\" and \"anymore\" \u2014 ongoing-state words about a game. 20% of its nearest training notes are distress; surrogate words: \"keep\", \"anymore\", \"i\"."
+    },
+    {
+      "kind": "false alarm",
+      "id": "gf-7",
+      "expected_miss": null,
+      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
+      "diagnosis": "\"I'm so done\" \u2014 the first person carries the score, not \"done\". 20% of its nearest training notes are distress; surrogate words: \"i'm\", \"i'm so\", \"and\"."
+    },
+    {
+      "kind": "false alarm",
+      "id": "gf-9",
+      "expected_miss": null,
+      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
+      "diagnosis": "A cleared stage; the first person outweighs \"cleared\", not the anger words. 0% of its nearest training notes are distress; surrogate words: \"i\", \"like\", \"finally cleared\"."
+    },
+    {
+      "kind": "false alarm",
+      "id": "mix-2",
+      "expected_miss": null,
+      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
+      "diagnosis": "A game ending; \"I\" carries the score more than \"sad\". 0% of its nearest training notes are distress; surrogate words: \"i\", \"of\", \"kind of\"."
+    },
+    {
+      "kind": "false alarm",
+      "id": "cur-mf-02-v02",
+      "expected_miss": null,
+      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
+      "diagnosis": "\"feel\" and \"just\" in a note about a finished game. 0% of its nearest training notes are distress; surrogate words: \"feel\", \"just\", \"i\"."
+    },
+    {
+      "kind": "false alarm",
+      "id": "mix-6",
+      "expected_miss": null,
+      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
+      "diagnosis": "Weak attributions; \"my\" is the largest. Just over the cutoff. 20% of its nearest training notes are distress; surrogate words: \"is\", \"over\", \"my\"."
+    },
+    {
+      "kind": "false alarm",
+      "id": "mix-1",
+      "expected_miss": null,
+      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
+      "diagnosis": "\"exhausted\" outweighs \"happy\". 40% of its nearest training notes are distress; surrogate words: \"exhausted\"."
+    },
+    {
+      "kind": "false alarm",
+      "id": "nff-relieved",
+      "expected_miss": null,
+      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
+      "diagnosis": "A golden case; \"I\" and \"honestly\" carry the score, not \"never get past\". 0% of its nearest training notes are distress; surrogate words: \"i\", \"get\", \"honestly\"."
+    },
+    {
+      "kind": "false alarm",
+      "id": "cur-nf-05-v05",
+      "expected_miss": null,
+      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
+      "diagnosis": "Weak attributions; \"without\" is the largest. Positive in content. 0% of its nearest training notes are distress; surrogate words: \"without\", \"lives\", \"for\"."
     }
   ]
 }
