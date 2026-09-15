@@ -1,4 +1,4 @@
-.PHONY: seed propose propose-run generate generate-run review stats splits vendor-model baselines train bench test lint types check
+.PHONY: seed propose propose-run generate generate-run review stats splits vendor-model baselines train bench evaluate evaluate-render test lint types check
 
 # Import the golden cases from the companion repo into data/seed.jsonl.
 # Re-run only if bloom-langgraph's eval dataset changes.
@@ -55,6 +55,16 @@ train:
 # ARGS="--llm-calls 20 --yes" to time real production calls (costs money).
 bench:
 	uv run --extra embed --extra teacher python scripts/bench_latency.py $(ARGS)
+
+# The test set, spent once. Refuses if artifacts/ or data/ are uncommitted, and
+# refuses a second look unless ARGS='--again "<reason>"' — which is recorded in
+# reports/test_ledger.json and must be disclosed in the model card.
+evaluate:
+	uv run --extra embed python -m dc.evaluate $(ARGS)
+
+# Re-render reports/test.md and the plots from saved predictions. No new look.
+evaluate-render:
+	uv run python -m dc.evaluate --render $(ARGS)
 
 test:
 	uv run pytest -q
