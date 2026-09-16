@@ -1,18 +1,22 @@
 """The cost model, the two thresholds, and what the cascade would have done.
 
-Three routes
-------------
-Every free-text note gets a score from the local model, and one of three routes:
+Three routes, and two statistics
+-------------------------------
+Every free-text note is scored twice — as one string, and as the highest of its
+segments (see :mod:`dc.text`) — and gets one of three routes:
 
-* ``p < low``  → **skip-llm**: straight to the encouragement branch, no LLM call.
-* between      → **escalate**: ask ``claude-haiku-4-5``, exactly as production does
-  today for every note.
-* ``p > high`` → **support**: straight to the reviewed support message.
+* ``worst < low``  → **skip-llm**: straight to the encouragement branch, no LLM call.
+* ``whole > high`` → **support**: straight to the reviewed support message.
+* anything else    → **escalate**: ask ``claude-haiku-4-5``, exactly as production
+  does today for every note.
 
-The asymmetry is the design. Skipping the LLM is the only route that can *add* a
-missed crisis, so ``low`` is not optimised at all — it is a safety constraint.
-The support route can only add a false alarm (a player who is fine receives a
-warm, reviewed message), so ``high`` is the one the cost model chooses.
+The asymmetry is the design, twice over. Skipping the LLM is the only route that
+can *add* a missed crisis, so ``low`` is not optimised at all — it is a safety
+constraint — and it is compared against the *worst* part of the note, because
+mean-pooling lets a long calm note hide a short alarming one. The support route
+can only add a false alarm (a player who is fine receives a warm, reviewed
+message), so ``high`` is the one the cost model chooses, and it reads the note as
+written rather than its most alarming fragment.
 
 The cost model
 --------------
@@ -24,11 +28,16 @@ retraining anything.
 
 How each threshold is fitted
 ----------------------------
-**low.** Take the lowest score any validation distress case received, and keep
-:data:`LOW_MARGIN` of it. By construction no validation distress case lands in
-the skip band — but that is a claim about a finite sample, so it is reported as
-one: with zero misses among *n* positives, the true share of distress cases that
-would skip is below ``1 - 0.05 ** (1 / n)`` with 95% confidence.
+**low.** Take the lowest score any validation distress case received *on the
+statistic the skip band actually compares* — the worst of its segments, not the
+note as one string — and keep :data:`LOW_MARGIN` of it. Fitting on whole-note
+scores while routing on segment maxima would measure the safety margin against a
+quantity the rule never looks at, and since a segment maximum is never below the
+whole-note score, it would quietly shrink the skip band by an unknown amount. By
+construction no validation distress case lands in the skip band — but that is a
+claim about a finite sample, so it is reported as one: with zero misses among *n*
+positives, the true share of distress cases that would skip is below
+``1 - 0.05 ** (1 / n)`` with 95% confidence.
 
 **high.** Every distinct way of splitting the validation rows above ``low`` into
 "escalate" and "support" is scored by expected cost, and the cheapest wins —
@@ -64,6 +73,7 @@ from enum import StrEnum
 import numpy as np
 
 from dc.metrics import FloatArrayLike, IntArrayLike
+from dc.text import Segmentation
 
 __all__ = [
     "COST_MODEL",
@@ -86,9 +96,12 @@ __all__ = [
     "fit_cascade",
     "fit_high",
     "fit_low",
+    "probability",
     "route",
+    "route_note",
     "simulate",
     "skip_band_positives",
+    "skip_statistic",
     "teacher_probabilities",
 ]
 
@@ -133,22 +146,67 @@ class Thresholds:
             raise ValueError(f"need 0 <= low <= high <= 1, got low={self.low}, high={self.high}")
 
 
-def route(score: object, thresholds: Thresholds) -> Route:
-    """The decision the service makes for one note.
+def probability(score: object) -> float | None:
+    """The score as a probability, or ``None`` if it is not one.
 
-    A score exactly on either threshold escalates. So does anything that is not a
-    finite probability — which means every way the local model can fail lands on
-    today's behaviour, never on a skipped LLM call.
+    Every way the local model can fail — a missing score, a NaN, a string, a
+    number outside [0, 1] — comes back as ``None`` here, and every caller turns
+    that into an escalation. Failure lands on today's behaviour by construction.
     """
     if isinstance(score, bool) or not isinstance(score, (int, float)):
-        return Route.ESCALATE
+        return None
     value = float(score)
     if not math.isfinite(value) or value < 0.0 or value > 1.0:
+        return None
+    return value
+
+
+def route(score: object, thresholds: Thresholds) -> Route:
+    """The decision from a whole-note score alone. A score on either threshold escalates.
+
+    This is the rule as it was first fitted, and it is what the red-team probe
+    defeated: a crisis clause diluted by game talk scores below ``low`` as one
+    string. :func:`route_note` is what the service uses.
+    """
+    value = probability(score)
+    if value is None:
         return Route.ESCALATE
     if value < thresholds.low:
         return Route.SKIP_LLM
     if value > thresholds.high:
         return Route.SUPPORT
+    return Route.ESCALATE
+
+
+def route_note(whole: object, worst_segment: object, thresholds: Thresholds) -> Route:
+    """The decision the service makes, from a note's two scores.
+
+    **The whole note decides support; the worst segment guards the skip band.**
+
+    The two bands answer different questions, so they read different statistics.
+    Support asks "is this note, as written, a crisis?" — a whole-note judgement,
+    and the one ``high`` was fitted on. Routing on the worst segment instead would
+    send a note to support because one clause inside it looked bad in isolation,
+    which is a new source of false alarms that nothing here has measured.
+
+    Skipping asks the opposite: "is there *nothing* here that needs a human-grade
+    reader?" That has to be true of every part of the note, because mean-pooling
+    lets a long calm note hide a short alarming one. So a note skips only when its
+    highest-scoring segment is still below ``low``.
+
+    Since the whole note is itself a segment, ``worst >= whole``, and the skip band
+    can only ever be narrower than the whole-note rule's — never wider.
+    """
+    value = probability(whole)
+    if value is None:
+        return Route.ESCALATE
+    if value > thresholds.high:
+        return Route.SUPPORT
+    worst = probability(worst_segment)
+    if worst is None:
+        return Route.ESCALATE
+    if worst < thresholds.low:
+        return Route.SKIP_LLM
     return Route.ESCALATE
 
 
@@ -166,6 +224,30 @@ class Outcome:
     skip_share: float
     escalate_share: float
     support_share: float
+
+
+def skip_statistic(scores: FloatArrayLike, skip_scores: FloatArrayLike | None) -> np.ndarray:
+    """The score the skip band compares against ``low``.
+
+    ``None`` means the whole-note score, which is the pre-segmentation rule and
+    what the unit tests exercise. Otherwise it is the worst segment, and the
+    ordering is checked: a segment maximum includes the whole note, so it can
+    never be lower. That check is here because passing the two arrays the wrong
+    way round would widen the skip band and produce entirely plausible numbers.
+    """
+    whole = np.asarray(scores, dtype=float)
+    if skip_scores is None:
+        return whole
+    worst = np.asarray(skip_scores, dtype=float)
+    if worst.shape != whole.shape:
+        raise ValueError("skip scores and scores differ in length")
+    comparable = np.isfinite(worst) & np.isfinite(whole)
+    if np.any(worst[comparable] < whole[comparable] - 1e-9):
+        raise ValueError(
+            "a skip score is below its whole-note score, which is impossible when the "
+            "whole note is one of the segments. Are the two arrays swapped?"
+        )
+    return worst
 
 
 def teacher_probabilities(votes: Sequence[Sequence[int]]) -> np.ndarray:
@@ -187,6 +269,7 @@ def simulate(
     *,
     costs: CostModel = COST_MODEL,
     name: str = "cascade",
+    skip_scores: FloatArrayLike | None = None,
 ) -> Outcome:
     truth = np.asarray(y, dtype=float)
     p = np.asarray(scores, dtype=float)
@@ -197,9 +280,11 @@ def simulate(
     if positives == 0:
         raise ValueError("no positives: recall is undefined")
 
-    # nan compares False both ways, so a missing score escalates, as route() does.
-    skip = p < thresholds.low
+    # nan compares False both ways, so a missing score escalates, as route_note()
+    # does. Support reads the whole note; the skip band reads the worst segment.
+    worst = skip_statistic(p, skip_scores)
     support = p > thresholds.high
+    skip = (worst < thresholds.low) & ~support
     escalate = ~(skip | support)
     flagged = np.where(support, 1.0, np.where(escalate, q, 0.0))
     missed = float(np.sum(truth * (1.0 - flagged)))
@@ -266,11 +351,15 @@ def fit_low(
 
 
 def skip_band_positives(
-    y: IntArrayLike, scores: FloatArrayLike, thresholds: Thresholds
+    y: IntArrayLike, skip_scores: FloatArrayLike, thresholds: Thresholds
 ) -> list[int]:
-    """Indices of distress cases that would skip the LLM. Must be empty on validation."""
+    """Indices of distress cases that would skip the LLM. Must be empty on validation.
+
+    ``skip_scores`` is the statistic the skip band compares — the worst segment
+    once segmentation is in play, the whole note before it.
+    """
     truth = np.asarray(y, dtype=int)
-    p = np.asarray(scores, dtype=float)
+    p = np.asarray(skip_scores, dtype=float)
     return [int(i) for i in np.flatnonzero((truth == 1) & (p < thresholds.low))]
 
 
@@ -323,6 +412,7 @@ def cost_curve(
     *,
     low: float,
     floor: float = 0.0,
+    skip_scores: FloatArrayLike | None = None,
 ) -> CostCurve:
     truth = np.asarray(y, dtype=float)
     p = np.asarray(scores, dtype=float)
@@ -333,13 +423,17 @@ def cost_curve(
     if positives == 0:
         raise ValueError("no positives: recall is undefined")
 
+    skip = skip_statistic(p, skip_scores) < low
+    # Candidates come from the notes `high` can act on, which is why the bound is
+    # `low` and not "not skipped". A note below `low` that escapes the skip band on
+    # one alarming segment still escalates at every valid cutoff — `high` may never
+    # sit below `low` — so it is not a place to put one.
     in_range = p[np.isfinite(p) & (p >= low) & (p <= 1.0)]
     edges = np.unique(np.concatenate([[low, 1.0], in_range]))
     # Midpoints: each candidate splits the rows exactly as the score below it would,
     # without resting on a validation row. 1.0 is "never route straight to support".
     candidates = np.concatenate([(edges[:-1] + edges[1:]) / 2.0, [1.0]])
 
-    skip = p < low
     support = p[None, :] > candidates[:, None]
     escalate = ~support & ~skip[None, :]
     flagged = np.where(support, 1.0, np.where(escalate, q[None, :], 0.0))
@@ -376,9 +470,10 @@ def fit_high(
     low: float,
     costs: CostModel = COST_MODEL,
     forbidden: IntArrayLike | None = None,
+    skip_scores: FloatArrayLike | None = None,
 ) -> float:
     floor = 0.0 if forbidden is None else constraint_floor(scores, forbidden)
-    curve = cost_curve(y, scores, teacher, low=low, floor=floor)
+    curve = cost_curve(y, scores, teacher, low=low, floor=floor, skip_scores=skip_scores)
     return float(curve.candidates[curve.best_index(costs)])
 
 
@@ -479,9 +574,18 @@ class CascadeFit:
     cascade: Outcome
     llm_alone: Outcome
     model_alone: Outcome
+    #: The same thresholds with the skip band reading whole notes instead of
+    #: segments — the rule the red-team probe defeated. ``None`` when no segment
+    #: scores were supplied. The gap between this and ``cascade`` is what the fix
+    #: costs in skipped LLM calls.
+    whole_note_cascade: Outcome | None
     envelope: tuple[Segment, ...]
     #: The product rule that outranked the cost model, if one was given.
     constraint: Constraint | None
+    #: How notes were cut up to produce the skip band's scores. Recorded here so it
+    #: reaches the artifact from the same call that fitted the threshold, rather
+    #: than being supplied again, correctly, by a second caller.
+    segmentation: Segmentation | None
     chosen_segment: int
     #: The operating point one step more conservative than the chosen one, if any.
     alternative: Segment | None
@@ -501,9 +605,20 @@ def fit_cascade(
     margins: Sequence[float] = DEFAULT_MARGINS,
     forbidden: IntArrayLike | None = None,
     forbidden_label: str = "",
+    skip_scores: FloatArrayLike | None = None,
+    segmentation: Segmentation | None = None,
 ) -> CascadeFit:
+    if (skip_scores is None) != (segmentation is None):
+        raise ValueError(
+            "segment scores and the segmentation that produced them must be given together: "
+            "the artifact records the segmentation, and a consumer that splits notes "
+            "differently from the fit would serve a skip band nobody measured"
+        )
     q = teacher_probabilities(votes)
-    low_fit = fit_low(y, scores, ids=ids, texts=texts, margin=margin)
+    # `low` is fitted on the statistic the skip band compares, not on the
+    # whole-note score. See the module docstring.
+    worst = skip_statistic(scores, skip_scores)
+    low_fit = fit_low(y, worst, ids=ids, texts=texts, margin=margin)
 
     constraint: Constraint | None = None
     floor = 0.0
@@ -511,19 +626,19 @@ def fit_cascade(
         floor = constraint_floor(scores, forbidden)
         mask = np.asarray(forbidden, dtype=bool)
         blocked = np.flatnonzero(mask)
-        worst = int(blocked[np.argmax(np.asarray(scores, dtype=float)[blocked])])
+        highest = int(blocked[np.argmax(np.asarray(scores, dtype=float)[blocked])])
         constraint = Constraint(
             label=forbidden_label or "rows that may not reach support",
             floor=floor,
             rows=int(mask.sum()),
-            set_by=ids[worst],
-            set_by_text=texts[worst],
+            set_by=ids[highest],
+            set_by_text=texts[highest],
         )
 
-    curve = cost_curve(y, scores, q, low=low_fit.threshold, floor=floor)
+    curve = cost_curve(y, scores, q, low=low_fit.threshold, floor=floor, skip_scores=worst)
     thresholds = Thresholds(low_fit.threshold, float(curve.candidates[curve.best_index(costs)]))
 
-    leaked = skip_band_positives(y, scores, thresholds)
+    leaked = skip_band_positives(y, worst, thresholds)
     if leaked:
         # Impossible while margin <= 1; checked anyway, because it is the one
         # property this whole construction exists to guarantee.
@@ -546,10 +661,11 @@ def fit_cascade(
 
     by_margin: list[MarginRow] = []
     for m in margins:
-        m_low = fit_low(y, scores, ids=ids, texts=texts, margin=m).threshold
+        m_low = fit_low(y, worst, ids=ids, texts=texts, margin=m).threshold
         outcome = simulate(
-            y, scores, q, Thresholds(m_low, max(m_low, thresholds.high)), costs=costs
-        )
+            y, scores, q, Thresholds(m_low, max(m_low, thresholds.high)),
+            costs=costs, skip_scores=worst,
+        )  # fmt: skip
         by_margin.append(MarginRow(m, m_low, outcome.skip_share))
 
     high = thresholds.high
@@ -557,13 +673,19 @@ def fit_cascade(
         thresholds=thresholds,
         costs=costs,
         low=low_fit,
-        cascade=simulate(y, scores, q, thresholds, costs=costs, name="cascade"),
+        cascade=simulate(y, scores, q, thresholds, costs=costs, name="cascade", skip_scores=worst),
         llm_alone=simulate(
             y, scores, q, Thresholds(0.0, 1.0), costs=costs, name="LLM alone (today)"
         ),
         model_alone=simulate(y, scores, q, Thresholds(high, high), costs=costs, name="model alone"),
+        whole_note_cascade=(
+            None
+            if skip_scores is None
+            else simulate(y, scores, q, thresholds, costs=costs, name="whole-note skip band")
+        ),
         envelope=segments,
         constraint=constraint,
+        segmentation=segmentation,
         chosen_segment=chosen,
         alternative=alternative,
         decisive=decisive,

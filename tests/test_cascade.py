@@ -25,6 +25,7 @@ from dc.cascade import (
     skip_band_positives,
     teacher_probabilities,
 )
+from dc.text import SEGMENTATION
 
 BANDS = Thresholds(low=0.1, high=0.8)
 
@@ -327,3 +328,88 @@ def test_an_unconstrained_fit_records_no_constraint() -> None:
     y, scores, teacher, ids = labels()
     votes = [(int(q * 3 + 0.5) * [1] + (3 - int(q * 3 + 0.5)) * [0]) for q in teacher]
     assert fit_cascade(y, scores, votes, ids=ids, texts=ids).constraint is None
+
+
+# --- the skip band reads segments ------------------------------------------------------
+
+
+def segmented(seed: int = 0) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list[str]]:
+    """The usual data, plus a worst-segment score that is never below the whole note."""
+    y, scores, teacher, ids = labels(seed=seed)
+    rng = np.random.default_rng(seed + 1)
+    worst = np.clip(scores + rng.uniform(0.0, 0.3, scores.size), 0.0, 1.0)
+    return y, scores, worst, teacher, ids
+
+
+def test_low_is_fitted_on_worst_segment_scores_not_whole_note_scores() -> None:
+    """Otherwise the margin is measured against a quantity the rule never looks at."""
+    y, scores, worst, _, ids = segmented()
+    votes = [[1] if label else [0] for label in y]
+    fit = fit_cascade(
+        y, scores, votes, ids=ids, texts=ids, skip_scores=worst, segmentation=SEGMENTATION
+    )
+    expected = fit_low(y, worst, ids=ids, texts=ids)
+    assert fit.thresholds.low == pytest.approx(expected.threshold)
+    assert fit.low.lowest_positive_score == pytest.approx(worst[y == 1].min())
+
+
+def test_no_distress_case_would_skip_under_the_segmented_rule() -> None:
+    for seed in range(10):
+        y, scores, worst, _, ids = segmented(seed)
+        votes = [[1] if label else [0] for label in y]
+        fit = fit_cascade(
+            y, scores, votes, ids=ids, texts=ids, skip_scores=worst, segmentation=SEGMENTATION
+        )
+        assert skip_band_positives(y, worst, fit.thresholds) == []
+
+
+def test_segment_scoring_never_skips_more_than_the_whole_note_rule_at_the_same_bands() -> None:
+    """The fix can only take notes out of the skip band, never put them in."""
+    y, scores, worst, _, ids = segmented()
+    votes = [[1] if label else [0] for label in y]
+    fit = fit_cascade(
+        y, scores, votes, ids=ids, texts=ids, skip_scores=worst, segmentation=SEGMENTATION
+    )
+    assert fit.whole_note_cascade is not None
+    assert fit.cascade.skip_share <= fit.whole_note_cascade.skip_share
+
+
+def test_the_comparison_outcome_is_absent_when_no_segments_were_scored() -> None:
+    y, scores, _, _, ids = segmented()
+    votes = [[1] if label else [0] for label in y]
+    assert fit_cascade(y, scores, votes, ids=ids, texts=ids).whole_note_cascade is None
+
+
+def test_scores_and_the_segmentation_that_produced_them_must_arrive_together() -> None:
+    """The artifact records the segmentation; a fit that cannot supply it is unservable."""
+    y, scores, worst, _, ids = segmented()
+    votes = [[1] if label else [0] for label in y]
+    with pytest.raises(ValueError, match="must be given together"):
+        fit_cascade(y, scores, votes, ids=ids, texts=ids, skip_scores=worst)
+    with pytest.raises(ValueError, match="must be given together"):
+        fit_cascade(y, scores, votes, ids=ids, texts=ids, segmentation=SEGMENTATION)
+
+
+def test_the_fit_records_the_segmentation_it_used() -> None:
+    y, scores, worst, _, ids = segmented()
+    votes = [[1] if label else [0] for label in y]
+    fit = fit_cascade(
+        y, scores, votes, ids=ids, texts=ids, skip_scores=worst, segmentation=SEGMENTATION
+    )
+    assert fit.segmentation == SEGMENTATION
+
+
+def test_every_candidate_cutoff_is_at_or_above_low() -> None:
+    """`high` below `low` is not a policy, so it is not an operating point either.
+
+    A note whose whole-note score is under `low` but which escapes the skip band on
+    one alarming segment escalates at every valid cutoff — it must not drag a
+    candidate down with it.
+    """
+    y, scores, worst, teacher, _ = segmented()
+    low = 0.3
+    assert np.any((worst >= low) & (scores < low))  # the case this guards against exists
+    curve = cost_curve(y, scores, teacher, low=low, skip_scores=worst)
+    assert np.all(curve.candidates >= low)
+    for candidate in curve.candidates:
+        Thresholds(low, float(candidate))  # raises if a candidate is not a usable `high`

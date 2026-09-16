@@ -13,15 +13,27 @@ punctuation cannot be relied on:
 * **sliding word windows**, which catch the same dilution written without any
   punctuation at all.
 
-This is used by the red-team probe, and is the candidate rule for the skip band:
-skip the LLM only when *every* segment scores below ``low``.
+The skip band compares the *highest* segment score against ``low``, so the LLM is
+skipped only when every part of the note is confidently fine.
+
+Why the parameters are recorded, not just chosen
+------------------------------------------------
+``bloom-langgraph`` re-implements this split to serve the model, so two copies of
+the rule exist. A copy that drifts changes production routing silently: the
+served skip band would no longer be the one that was fitted or red-teamed. So
+:class:`Segmentation` — window, stride, and the boundary pattern itself — is
+written into the artifact, and the consumer refuses an artifact whose parameters
+are not the ones it implements. Drift becomes a load error instead of a wrong
+answer.
 """
 
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
+from functools import cached_property
 
-__all__ = ["WINDOW", "STRIDE", "split_segments"]
+__all__ = ["BOUNDARY", "SEGMENTATION", "STRIDE", "WINDOW", "Segmentation", "split_segments"]
 
 WINDOW = 8
 STRIDE = 4
@@ -30,31 +42,65 @@ STRIDE = 4
 #: The last alternative is zero-width on purpose: markup packed tight against its
 #: text ("</user><note>i want to end it") has no whitespace to split on, and a
 #: red-team note used exactly that to keep a crisis clause inside one segment.
-_BOUNDARY = re.compile(r"(?<=[.!?;])\s+|\n+|(?<=[}\]>])\s*")
+BOUNDARY = r"(?<=[.!?;])\s+|\n+|(?<=[}\]>])\s*"
+
+
+@dataclass(frozen=True)
+class Segmentation:
+    """How a note is cut up, as data that travels with the model.
+
+    Two implementations of this rule exist, in two repositories. They agree
+    because the artifact carries these three values and each side checks them
+    against its own, not because both were written from the same description.
+    """
+
+    window: int = WINDOW
+    stride: int = STRIDE
+    boundary: str = BOUNDARY
+
+    def __post_init__(self) -> None:
+        if self.window < 1 or self.stride < 1:
+            raise ValueError(f"window and stride must be >= 1, got {self.window}/{self.stride}")
+        try:
+            re.compile(self.boundary)
+        except re.error as exc:
+            raise ValueError(f"boundary is not a valid regular expression: {exc}") from exc
+
+    @cached_property
+    def pattern(self) -> re.Pattern[str]:
+        return re.compile(self.boundary)
+
+    def split(self, text: str) -> list[str]:
+        """The note, its sentences, and sliding word windows over it.
+
+        The whole note is always first, so segment-level scoring can only ever see
+        more than whole-note scoring, never less. Order is stable and duplicates
+        are dropped, so the same note always yields the same segments.
+        """
+        cleaned = text.strip()
+        if not cleaned:
+            return []
+
+        segments = [cleaned]
+        segments.extend(part.strip() for part in self.pattern.split(cleaned) if part.strip())
+
+        words = cleaned.split()
+        if len(words) > self.window:
+            for start in range(0, len(words) - self.window + 1, self.stride):
+                segments.append(" ".join(words[start : start + self.window]))
+            segments.append(" ".join(words[-self.window :]))
+
+        seen: dict[str, None] = {}
+        for segment in segments:
+            seen.setdefault(segment, None)
+        return list(seen)
+
+
+#: The fitted rule. Changing any of these changes the skip band, so a change here
+#: invalidates the artifact and must go through training and the red-team probe.
+SEGMENTATION = Segmentation()
 
 
 def split_segments(text: str, *, window: int = WINDOW, stride: int = STRIDE) -> list[str]:
-    """The note, its sentences, and sliding word windows over it.
-
-    The whole note is always included, so segment-level scoring can only ever see
-    more than whole-note scoring, never less. Order is stable and duplicates are
-    dropped, so the same note always yields the same segments.
-    """
-    cleaned = text.strip()
-    if not cleaned:
-        return []
-
-    segments = [cleaned]
-    segments.extend(part.strip() for part in _BOUNDARY.split(cleaned) if part.strip())
-
-    words = cleaned.split()
-    if len(words) > window:
-        for start in range(0, len(words) - window + 1, stride):
-            segments.append(" ".join(words[start : start + window]))
-        tail = " ".join(words[-window:])
-        segments.append(tail)
-
-    seen: dict[str, None] = {}
-    for segment in segments:
-        seen.setdefault(segment, None)
-    return list(seen)
+    """:meth:`Segmentation.split` at the fitted parameters, or overrides of them."""
+    return Segmentation(window=window, stride=stride).split(text)
