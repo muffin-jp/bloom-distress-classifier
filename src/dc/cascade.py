@@ -31,7 +31,11 @@ one: with zero misses among *n* positives, the true share of distress cases that
 would skip is below ``1 - 0.05 ** (1 / n)`` with 95% confidence.
 
 **high.** Every distinct way of splitting the validation rows above ``low`` into
-"escalate" and "support" is scored by expected cost, and the cheapest wins. Each
+"escalate" and "support" is scored by expected cost, and the cheapest wins —
+subject to a constraint, when one is given. ``forbidden`` marks validation rows
+that may never reach support, which raises a floor under ``high``: no cutoff is
+considered that would route one of them there. The cost model then chooses among
+what is left, so a product rule outranks the ratio rather than competing with it. Each
 cutoff is placed midway between the two scores it separates, so it never sits on
 top of a validation row that the shipped model will score slightly differently.
 Ties go to the *higher* cutoff: escalating more stays closer to production.
@@ -67,6 +71,7 @@ __all__ = [
     "LOW_MARGIN",
     "RATIO_GRID",
     "CascadeFit",
+    "Constraint",
     "CostCurve",
     "CostModel",
     "LowFit",
@@ -269,6 +274,18 @@ def skip_band_positives(
     return [int(i) for i in np.flatnonzero((truth == 1) & (p < thresholds.low))]
 
 
+@dataclass(frozen=True)
+class Constraint:
+    """Validation rows that may never reach support, and the floor they impose."""
+
+    label: str
+    floor: float
+    rows: int
+    #: The row whose score set the floor — the one closest to being routed wrongly.
+    set_by: str
+    set_by_text: str
+
+
 @dataclass(frozen=True, eq=False)
 class CostCurve:
     """Expected misses and false alarms for every distinct choice of ``high``."""
@@ -280,18 +297,32 @@ class CostCurve:
     escalate_share: np.ndarray
     support_share: np.ndarray
     positives: int
+    #: Cutoffs below this are not permitted; see :class:`Constraint`.
+    floor: float = 0.0
+
+    def permitted(self) -> np.ndarray:
+        return self.candidates >= self.floor
 
     def best_index(self, costs: CostModel) -> int:
-        """Cheapest candidate; ties go to the highest cutoff."""
+        """Cheapest permitted candidate; ties go to the highest cutoff."""
         total = (
             costs.false_negative * self.expected_missed
             + costs.false_positive * self.expected_false_positives
         )
-        return int(np.flatnonzero(total <= total.min() + 1e-9).max())
+        allowed = np.flatnonzero(self.permitted())
+        if allowed.size == 0:
+            raise ValueError("the constraint permits no cutoff at all")
+        best = total[allowed].min()
+        return int(allowed[total[allowed] <= best + 1e-9].max())
 
 
 def cost_curve(
-    y: IntArrayLike, scores: FloatArrayLike, teacher: FloatArrayLike, *, low: float
+    y: IntArrayLike,
+    scores: FloatArrayLike,
+    teacher: FloatArrayLike,
+    *,
+    low: float,
+    floor: float = 0.0,
 ) -> CostCurve:
     truth = np.asarray(y, dtype=float)
     p = np.asarray(scores, dtype=float)
@@ -320,7 +351,21 @@ def cost_curve(
         escalate_share=np.mean(escalate, axis=1),
         support_share=np.mean(support, axis=1),
         positives=positives,
+        floor=floor,
     )
+
+
+def constraint_floor(scores: FloatArrayLike, forbidden: IntArrayLike) -> float:
+    """The smallest ``high`` that keeps every forbidden row out of support.
+
+    Support is ``p > high``, so a row is excluded once ``high`` reaches its score.
+    """
+    p = np.asarray(scores, dtype=float)
+    mask = np.asarray(forbidden, dtype=bool)
+    if mask.shape != p.shape:
+        raise ValueError("forbidden mask and scores differ in length")
+    blocked = p[mask & np.isfinite(p)]
+    return float(blocked.max()) if blocked.size else 0.0
 
 
 def fit_high(
@@ -330,8 +375,10 @@ def fit_high(
     *,
     low: float,
     costs: CostModel = COST_MODEL,
+    forbidden: IntArrayLike | None = None,
 ) -> float:
-    curve = cost_curve(y, scores, teacher, low=low)
+    floor = 0.0 if forbidden is None else constraint_floor(scores, forbidden)
+    curve = cost_curve(y, scores, teacher, low=low, floor=floor)
     return float(curve.candidates[curve.best_index(costs)])
 
 
@@ -433,6 +480,8 @@ class CascadeFit:
     llm_alone: Outcome
     model_alone: Outcome
     envelope: tuple[Segment, ...]
+    #: The product rule that outranked the cost model, if one was given.
+    constraint: Constraint | None
     chosen_segment: int
     #: The operating point one step more conservative than the chosen one, if any.
     alternative: Segment | None
@@ -450,10 +499,28 @@ def fit_cascade(
     costs: CostModel = COST_MODEL,
     margin: float = LOW_MARGIN,
     margins: Sequence[float] = DEFAULT_MARGINS,
+    forbidden: IntArrayLike | None = None,
+    forbidden_label: str = "",
 ) -> CascadeFit:
     q = teacher_probabilities(votes)
     low_fit = fit_low(y, scores, ids=ids, texts=texts, margin=margin)
-    curve = cost_curve(y, scores, q, low=low_fit.threshold)
+
+    constraint: Constraint | None = None
+    floor = 0.0
+    if forbidden is not None:
+        floor = constraint_floor(scores, forbidden)
+        mask = np.asarray(forbidden, dtype=bool)
+        blocked = np.flatnonzero(mask)
+        worst = int(blocked[np.argmax(np.asarray(scores, dtype=float)[blocked])])
+        constraint = Constraint(
+            label=forbidden_label or "rows that may not reach support",
+            floor=floor,
+            rows=int(mask.sum()),
+            set_by=ids[worst],
+            set_by_text=texts[worst],
+        )
+
+    curve = cost_curve(y, scores, q, low=low_fit.threshold, floor=floor)
     thresholds = Thresholds(low_fit.threshold, float(curve.candidates[curve.best_index(costs)]))
 
     leaked = skip_band_positives(y, scores, thresholds)
@@ -496,6 +563,7 @@ def fit_cascade(
         ),
         model_alone=simulate(y, scores, q, Thresholds(high, high), costs=costs, name="model alone"),
         envelope=segments,
+        constraint=constraint,
         chosen_segment=chosen,
         alternative=alternative,
         decisive=decisive,

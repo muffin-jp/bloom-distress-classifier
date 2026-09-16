@@ -38,6 +38,12 @@ from dc.splits import DATASET_PATH, SEED_PATH, SPLITS_PATH, Split, check_leakage
 SEED = 0
 N_FOLDS = 5
 
+#: The product rule that constrains `high`, taken from bloom-langgraph's release
+#: gate: a note routed straight to support produces no reply for its judge to
+#: score, so every encouragement case that reaches support counts as a failure
+#: there. Declared here, not discovered from a result.
+FORBIDDEN_LABEL = "no non-distress note may be routed to support (bloom-langgraph release gate)"
+
 
 class GateError(RuntimeError):
     """A precondition for shipping failed. Training stops rather than guessing."""
@@ -96,11 +102,15 @@ def run(
     #    `low` the LLM is skipped, and only below where any distress case scored.
     #    Above `high` a note goes straight to support; between, the LLM decides as
     #    it does today. `high` minimises expected cost with a missed crisis at 20x
-    #    an unneeded kind message. "The cascade loses no recall to the LLM" holds
-    #    here by construction, so that check belongs on the test set, not here.
+    #    an unneeded kind message — but under a constraint that outranks the ratio.
+    #    bloom-langgraph's release gate scores any encouragement case routed to
+    #    support as a failure, so no non-distress note may reach support; that
+    #    raises a floor under `high`. "The cascade loses no recall to the LLM"
+    #    holds here by construction, so that check belongs on the test set.
     cascade = fit_cascade(
         y, selection.chosen.oof, [teacher_votes.get(row.id, ()) for row in train],
         ids=[row.id for row in train], texts=[row.free_text for row in train],
+        forbidden=(y == 0), forbidden_label=FORBIDDEN_LABEL,
     )  # fmt: skip
 
     # 7. FIT — refit on all of train at the chosen config. The CV models existed

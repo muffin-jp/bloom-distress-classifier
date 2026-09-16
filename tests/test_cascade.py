@@ -13,6 +13,7 @@ from dc.cascade import (
     CostModel,
     Route,
     Thresholds,
+    constraint_floor,
     cost_curve,
     decisive_positives,
     envelope,
@@ -255,3 +256,74 @@ def test_decisive_positives_are_the_rows_the_trade_rests_on() -> None:
     )  # fmt: skip
     # b is caught by the LLM either way; d is not distress; e supports either way.
     assert [row_id for row_id, _, _, _ in rows] == ["a", "c"]
+
+
+# --- a product rule outranking the cost model ----------------------------------------
+
+
+def test_the_floor_is_the_highest_forbidden_score() -> None:
+    scores = np.array([0.1, 0.9, 0.4, 0.95])
+    assert constraint_floor(scores, np.array([1, 0, 1, 0])) == pytest.approx(0.4)
+    assert constraint_floor(scores, np.zeros(4)) == 0.0
+
+
+def test_the_floor_rejects_a_mismatched_mask() -> None:
+    with pytest.raises(ValueError, match="differ in length"):
+        constraint_floor(np.array([0.1, 0.2]), np.array([1]))
+
+
+def test_no_forbidden_row_can_be_routed_to_support() -> None:
+    """The property the constraint exists to guarantee, over many draws."""
+    for seed in range(10):
+        y, scores, teacher, _ = labels(n=90, seed=seed)
+        forbidden = y == 0
+        high = fit_high(y, scores, teacher, low=0.0, forbidden=forbidden)
+        assert not np.any(scores[forbidden] > high)
+
+
+def test_the_constraint_only_ever_raises_the_cutoff() -> None:
+    y, scores, teacher, _ = labels(n=90)
+    free = fit_high(y, scores, teacher, low=0.0)
+    constrained = fit_high(y, scores, teacher, low=0.0, forbidden=(y == 0))
+    assert constrained >= free
+
+
+def test_an_unconstrained_fit_is_unchanged() -> None:
+    # Passing no mask must leave the original behaviour exactly as it was.
+    y, scores, teacher, _ = labels(n=90)
+    assert fit_high(y, scores, teacher, low=0.0) == fit_high(
+        y, scores, teacher, low=0.0, forbidden=np.zeros(len(y))
+    )
+
+
+def test_the_envelope_offers_only_permitted_operating_points() -> None:
+    y, scores, teacher, _ = labels(n=90)
+    floor = constraint_floor(scores, y == 0)
+    segments = envelope(cost_curve(y, scores, teacher, low=0.0, floor=floor))
+    assert all(segment.high >= floor for segment in segments)
+
+
+def test_a_curve_that_permits_nothing_says_so() -> None:
+    y, scores, teacher, _ = labels()
+    curve = cost_curve(y, scores, teacher, low=0.0, floor=1.5)
+    with pytest.raises(ValueError, match="permits no cutoff"):
+        curve.best_index(CostModel(20.0, 1.0))
+
+
+def test_the_fit_records_which_row_set_the_floor() -> None:
+    y, scores, teacher, ids = labels(n=90)
+    votes = [(int(q * 3 + 0.5) * [1] + (3 - int(q * 3 + 0.5)) * [0]) for q in teacher]
+    fit = fit_cascade(
+        y, scores, votes, ids=ids, texts=ids, forbidden=(y == 0), forbidden_label="no negatives"
+    )
+    assert fit.constraint is not None
+    worst = int(np.argmax(np.where(y == 0, scores, -1)))
+    assert fit.constraint.set_by == ids[worst]
+    assert fit.constraint.floor == pytest.approx(scores[worst])
+    assert fit.thresholds.high >= fit.constraint.floor
+
+
+def test_an_unconstrained_fit_records_no_constraint() -> None:
+    y, scores, teacher, ids = labels()
+    votes = [(int(q * 3 + 0.5) * [1] + (3 - int(q * 3 + 0.5)) * [0]) for q in teacher]
+    assert fit_cascade(y, scores, votes, ids=ids, texts=ids).constraint is None

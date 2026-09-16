@@ -293,11 +293,30 @@ def render_cascade_markdown(summary: TrainingSummary) -> str:
     for row_id, score_value, text in fit.low.nearest_positives:
         lines.append(f"| `{row_id}` | {score_value:.4f} | {text} |")
 
+    if fit.constraint is not None:
+        c = fit.constraint
+        lines += [
+            "",
+            "## A product rule outranks the cost model",
+            "",
+            f"**{c.label}**",
+            "",
+            f"That rule is a constraint, not a price, so it is applied before the ratio is: no "
+            f"cutoff is considered that would route one of the {c.rows} protected validation "
+            f"rows to support. The highest-scoring one sets the floor at **{c.floor:.4f}**:",
+            "",
+            f"> `{c.set_by}` — {c.set_by_text}",
+            "",
+            f"Every operating point below that floor is removed, which leaves "
+            f"{len(fit.envelope)} of them. A single row can therefore decide the whole "
+            "operating point; if that row's label is contested, so is the threshold.",
+        ]
+
     lines += [
         "",
         "## `high` is chosen by expected cost",
         "",
-        f"Every distinct split of the rows above `low` was scored by expected cost at "
+        f"Every permitted split of the rows above `low` was scored by expected cost at "
         f"{ratio:g}:1, and **{high:.3f}** was cheapest. The cutoff sits midway between the "
         "two scores it separates, so it does not rest on a validation row. Ties went to "
         "the higher cutoff, which escalates more and so stays closer to production.",
@@ -332,7 +351,8 @@ def render_cascade_markdown(summary: TrainingSummary) -> str:
         "## If the ratio is different",
         "",
         "`low` does not depend on the ratio. `high` does — and not smoothly. Across every "
-        "possible ratio, the cost model can only ever choose one of these operating points:",
+        "possible ratio, the cost model can only ever choose one of these operating points "
+        "(a constraint, where one applies, has already removed the rest):",
         "",
         "| Ratios that choose it | `high` | Expected recall | Expected missed "
         "| Expected false alarms | LLM calls | Support |",
