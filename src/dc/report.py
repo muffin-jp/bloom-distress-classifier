@@ -28,6 +28,7 @@ __all__ = [
     "artifact_metadata",
     "render_cascade_markdown",
     "render_markdown",
+    "segmentation_metadata",
     "summarize",
     "thresholds_metadata",
     "write_report",
@@ -252,18 +253,29 @@ def render_cascade_markdown(summary: TrainingSummary) -> str:
         f"Thresholds fitted on the chosen model's out-of-fold scores: {summary.n_train} "
         f"training rows, {summary.n_positive} distress. **The test split is untouched.**",
         "",
-        "## Three routes",
+        "## Three routes, and two statistics",
         "",
-        "| Score | Route | What happens |",
+        "Every note is scored twice: as one string (`whole`), and as the highest-scoring "
+        "of its sentences and sliding word windows (`worst`). The two bands read "
+        "different statistics on purpose.",
+        "",
+        "| Condition | Route | What happens |",
         "| --- | --- | --- |",
-        f"| p < {low:.4f} | `skip-llm` | Encouragement branch. No LLM call. |",
-        f"| {low:.4f} ≤ p ≤ {high:.3f} | `escalate` | `claude-haiku-4-5` decides — "
-        "exactly what production does today. |",
-        f"| p > {high:.3f} | `support` | The reviewed support message. No LLM call. |",
+        f"| `worst` < {low:.4f} | `skip-llm` | Encouragement branch. No LLM call. |",
+        f"| `whole` > {high:.3f} | `support` | The reviewed support message. No LLM call. |",
+        "| otherwise | `escalate` | `claude-haiku-4-5` decides — exactly what production "
+        "does today. |",
         "",
         "A score exactly on a threshold escalates, and so does any score that is not a "
         "finite probability. Every way the local model can fail lands on today's "
         "behaviour, never on a skipped call.",
+        "",
+        "**Why the skip band reads segments.** MiniLM mean-pools a note, so a crisis "
+        "clause inside a longer note about a puzzle is averaged away — 13 of 72 red-team "
+        "notes skipped the LLM that way. Scoring the parts closes it. **Why support does "
+        "not.** `high` was fitted on whole notes, and routing on fragments would send a "
+        "note to support because one clause inside it read badly in isolation: a class of "
+        "false alarm neither the cost model nor the release gate has measured.",
         "",
         "## The cost model",
         "",
@@ -275,10 +287,14 @@ def render_cascade_markdown(summary: TrainingSummary) -> str:
         "## `low` is a safety constraint, not an optimisation",
         "",
         "Skipping the LLM is the only route that can add a missed crisis, so `low` is "
-        f"not tuned for cost. The lowest score any validation distress case received "
-        f"was **{fit.low.lowest_positive_score:.4f}**; `low` keeps "
+        "not tuned for cost. The lowest **worst-segment** score any validation distress "
+        f"case received was **{fit.low.lowest_positive_score:.4f}**; `low` keeps "
         f"{fit.low.margin:.0%} of it, **{low:.4f}**. No validation distress case falls "
         "in the skip band.",
+        "",
+        "It is fitted on worst-segment scores because that is the statistic the rule "
+        "compares. Fitting on whole-note scores instead would measure the margin against "
+        "a quantity the skip band never looks at.",
         "",
         f"Zero misses among {fit.low.n_positive} is still a finite sample. The honest "
         "form of the claim: the true share of distress cases that would skip the LLM is "
@@ -336,6 +352,20 @@ def render_cascade_markdown(summary: TrainingSummary) -> str:
         f"Routes under the cascade: skip **{fit.cascade.skip_share:.0%}** · escalate "
         f"**{fit.cascade.escalate_share:.0%}** · support **{fit.cascade.support_share:.0%}**.",
     ]
+
+    if fit.whole_note_cascade is not None:
+        cost = fit.whole_note_cascade.skip_share - fit.cascade.skip_share
+        lines += [
+            "",
+            "### What segment scoring costs",
+            "",
+            f"At these same thresholds, scoring whole notes would skip "
+            f"**{fit.whole_note_cascade.skip_share:.0%}** of notes against "
+            f"**{fit.cascade.skip_share:.0%}** here — segmentation gives back "
+            f"**{cost:.0%}** of the saving. That is the price of the red-team fix, and it "
+            "is paid in LLM calls rather than in missed crises, which is the right way "
+            "round.",
+        ]
 
     if fit.cascade.expected_missed < 0.5:
         lines += [
@@ -489,6 +519,7 @@ def artifact_metadata(summary: TrainingSummary, provenance: dict[str, Any]) -> d
             "solver": "lbfgs",
         },
         "thresholds": thresholds_metadata(summary.cascade),
+        "segmentation": segmentation_metadata(summary.cascade),
         "selection": {
             "rule": summary.selection.rule,
             "cv_pr_auc_mean": chosen.mean,
@@ -501,15 +532,34 @@ def artifact_metadata(summary: TrainingSummary, provenance: dict[str, Any]) -> d
     }
 
 
+def segmentation_metadata(fit: CascadeFit) -> dict[str, Any] | None:
+    """How notes are cut up, as parameters a second implementation can check itself against.
+
+    ``bloom-langgraph`` splits notes with its own copy of this rule. Carrying the
+    boundary pattern itself — not a description of it — lets that copy refuse an
+    artifact it would split differently, which turns a silent change in production
+    routing into a load error.
+    """
+    if fit.segmentation is None:
+        return None
+    return {
+        "window": fit.segmentation.window,
+        "stride": fit.segmentation.stride,
+        "boundary": fit.segmentation.boundary,
+        "applies_to": "skip-llm",
+        "aggregate": "max",
+    }
+
+
 def thresholds_metadata(fit: CascadeFit) -> dict[str, Any]:
     """The decision rule, carried by the artifact so the consumer cannot guess it."""
     return {
         "low": fit.thresholds.low,
         "high": fit.thresholds.high,
         "routes": {
-            "below_low": "skip-llm",
-            "between_inclusive": "escalate",
-            "above_high": "support",
+            "worst_segment_below_low": "skip-llm",
+            "whole_note_above_high": "support",
+            "otherwise": "escalate",
             "invalid_score": "escalate",
         },
         "cost_model": {
@@ -517,7 +567,10 @@ def thresholds_metadata(fit: CascadeFit) -> dict[str, Any]:
             "false_positive": fit.costs.false_positive,
         },
         "low_margin": fit.low.margin,
-        "fitted_on": "out-of-fold scores of the chosen config, grouped CV on train",
+        "low_fitted_on": (
+            "out-of-fold worst-segment scores of the chosen config, grouped CV on train"
+        ),
+        "high_fitted_on": "out-of-fold whole-note scores of the same",
         "validation": {
             "llm_alone_expected_recall": fit.llm_alone.expected_recall,
             "cascade_expected_recall": fit.cascade.expected_recall,

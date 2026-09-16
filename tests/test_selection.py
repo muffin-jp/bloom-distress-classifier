@@ -11,10 +11,13 @@ from dc.schema import Feeling
 from dc.selection import (
     Config,
     ConfigResult,
+    Fold,
     evaluate_config,
     feeling_swap_probe,
     grid,
+    make_estimator,
     make_folds,
+    oof_segment_max,
     probe_best_feeling_config,
     select,
 )
@@ -170,3 +173,72 @@ def test_probe_targets_are_derived_from_the_data() -> None:
 def test_probe_is_skipped_when_no_feeling_config_was_scored() -> None:
     x_text, feelings, y, groups = leaky_data()
     assert probe_best_feeling_config([], x_text, feelings, y, make_folds(y, groups)) == (None, [])
+
+
+# --- out-of-fold segment scores -------------------------------------------------------
+
+
+def segment_data(
+    n: int = 60, per_note: int = 3, seed: int = 0
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list[Fold]]:
+    """Rows whose first segment is the note itself and whose others are noise."""
+    rng = np.random.default_rng(seed)
+    y = (np.arange(n) % 2).astype(int)
+    x_text = np.column_stack([y + rng.normal(scale=0.4, size=n), rng.normal(size=n)])
+    owners = np.repeat(np.arange(n), per_note)
+    segments = np.repeat(x_text, per_note, axis=0)
+    # Every segment after the first is pulled toward the negative side, so the
+    # note itself is the maximum and the aggregate must pick it out.
+    for offset in range(1, per_note):
+        segments[offset::per_note, 0] -= 3.0
+    folds = make_folds(y, np.arange(n), n_splits=4, seed=seed)
+    return y, x_text, segments, owners, folds
+
+
+def test_segment_scores_come_from_a_model_that_never_saw_the_row() -> None:
+    """In-sample scores would set `low` from a model that had already read the note.
+
+    That optimism is exactly what the margin exists to guard against, so the fold
+    models are refit and each scores only its own held-out rows.
+    """
+    y, x_text, segments, owners, folds = segment_data()
+    config = Config(C=1.0, class_weight="none", include_feeling=False)
+    out_of_fold = oof_segment_max(
+        config, x_text, y, folds, segment_features=segments, segment_owner=owners
+    )
+
+    in_sample = make_estimator(config).fit(x_text, y)
+    fitted_on_everything = np.maximum.reduceat(
+        in_sample.predict_proba(segments)[:, 1], np.arange(0, len(owners), 3)
+    )
+    # Optimism is a statement about the average, not about any single row.
+    positives = y == 1
+    assert out_of_fold[positives].mean() < fitted_on_everything[positives].mean()
+
+
+def test_every_row_gets_a_segment_score() -> None:
+    y, x_text, segments, owners, folds = segment_data()
+    config = Config(C=1.0, class_weight="none", include_feeling=False)
+    scores = oof_segment_max(
+        config, x_text, y, folds, segment_features=segments, segment_owner=owners
+    )
+    assert scores.shape == y.shape
+    assert np.all(np.isfinite(scores))
+
+
+def test_a_row_with_no_segments_is_refused_rather_than_scored_as_safe() -> None:
+    """A row nothing can score must not silently become a row nothing flags."""
+    y, x_text, segments, owners, folds = segment_data()
+    keep = owners != 0
+    config = Config(C=1.0, class_weight="none", include_feeling=False)
+    with pytest.raises(ValueError, match="produced no segments"):
+        oof_segment_max(
+            config, x_text, y, folds, segment_features=segments[keep], segment_owner=owners[keep]
+        )
+
+
+def test_segment_scoring_rejects_a_config_that_reads_the_feeling_chip() -> None:
+    y, x_text, segments, owners, folds = segment_data()
+    config = Config(C=1.0, class_weight="none", include_feeling=True)
+    with pytest.raises(ValueError, match="no chip of its own"):
+        oof_segment_max(config, x_text, y, folds, segment_features=segments, segment_owner=owners)

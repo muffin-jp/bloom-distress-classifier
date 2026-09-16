@@ -33,6 +33,7 @@ import numpy as np
 
 from dc.features import EMBED_MODEL, EMBED_MODEL_REVISION
 from dc.model import DistressModel, FeatureLayout
+from dc.text import Segmentation
 
 __all__ = [
     "ARTIFACT_DIR",
@@ -42,11 +43,15 @@ __all__ = [
     "dataset_sha256",
     "is_servable",
     "load",
+    "read_segmentation",
     "save",
     "source_commit",
 ]
 
-SCHEMA_VERSION = 1
+#: Bumped to 2 when the skip band moved from whole notes to segments: an artifact
+#: without a `segmentation` block records a decision rule this code no longer
+#: implements, so refusing it outright is the only safe reading.
+SCHEMA_VERSION = 2
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ARTIFACT_DIR = REPO_ROOT / "artifacts"
 NPZ_NAME = "model.npz"
@@ -142,6 +147,30 @@ def load(
     return LoadedArtifact(model=model, metadata=document)
 
 
+def read_segmentation(metadata: dict[str, Any]) -> Segmentation:
+    """The splitting rule the artifact was fitted with, as an object.
+
+    Raises rather than falling back to :data:`dc.text.SEGMENTATION`. A default here
+    would let an artifact fitted under one rule be served under another, which is
+    the precise failure the recorded parameters exist to prevent — and it would be
+    invisible, because both rules produce perfectly ordinary-looking scores.
+    """
+    raw = metadata.get("segmentation")
+    if not isinstance(raw, dict):
+        raise ArtifactError(
+            "artifact records no segmentation, so the skip band's rule is unknown. It was "
+            "fitted before segment scoring; retrain rather than guessing the parameters."
+        )
+    block = cast("dict[str, Any]", raw)
+    window, stride, boundary = block.get("window"), block.get("stride"), block.get("boundary")
+    if not (isinstance(window, int) and isinstance(stride, int) and isinstance(boundary, str)):
+        raise ArtifactError(f"segmentation block is malformed: {block!r}")
+    try:
+        return Segmentation(window=window, stride=stride, boundary=boundary)
+    except ValueError as exc:
+        raise ArtifactError(str(exc)) from exc
+
+
 def is_servable(metadata: dict[str, Any]) -> bool:
     """True only once operating thresholds have been fitted.
 
@@ -154,11 +183,19 @@ def is_servable(metadata: dict[str, Any]) -> bool:
         return False
     bands = cast("dict[str, Any]", thresholds)
     low, high = bands.get("low"), bands.get("high")
-    return (
+    if not (
         isinstance(low, (int, float))
         and isinstance(high, (int, float))
         and 0.0 <= float(low) <= float(high) <= 1.0
-    )
+    ):
+        return False
+    # The skip band is only safe as fitted if the consumer splits notes the same
+    # way, so an artifact that does not say how is not servable either.
+    try:
+        read_segmentation(metadata)
+    except ArtifactError:
+        return False
+    return True
 
 
 def dataset_sha256(paths: Sequence[Path]) -> str:

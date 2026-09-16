@@ -30,10 +30,13 @@ from dc.selection import (
     evaluate_config,
     grid,
     make_folds,
+    oof_segment_max,
     probe_best_feeling_config,
     select,
 )
+from dc.serve import flatten_segments
 from dc.splits import DATASET_PATH, SEED_PATH, SPLITS_PATH, Split, check_leakage, split_rows
+from dc.text import SEGMENTATION, Segmentation
 
 SEED = 0
 N_FOLDS = 5
@@ -60,6 +63,7 @@ def run(
     report_dir: Path = REPORT_DIR,
     dataset_files: Sequence[Path] = (),
     seed: int = SEED,
+    segmentation: Segmentation = SEGMENTATION,
 ) -> TrainingSummary:
     # 1. LOAD — rows arrive already validated by dc.schema's strict loader. A
     #    malformed or contradictory row failed before this function was called.
@@ -76,8 +80,14 @@ def run(
 
     # 3. EMBED — frozen MiniLM at production's pinned revision. ~500 rows cannot
     #    train its 22.7M parameters without memorising them; they can fit 385.
+    #    Each note is embedded twice over: once whole, and once per segment, because
+    #    the two thresholds read different statistics (see step 6).
     x_text = build_features(train, embedder, include_feeling=False)
     x_feeling = feeling_one_hot([row.feeling for row in train])
+    segment_texts, segment_owner = flatten_segments(
+        [row.free_text for row in train], segmentation=segmentation
+    )
+    x_segments = np.asarray(embedder.embed(segment_texts), dtype=np.float32)
 
     # 4. BASELINE — the bar. A crisis-keyword rule needs no training at all, so
     #    a model that cannot beat it has no reason to exist.
@@ -98,19 +108,31 @@ def run(
         results, x_text, [row.feeling for row in train], y, folds, seed=seed
     )
 
-    # 6. THRESHOLD — two cutoffs on the chosen config's out-of-fold scores. Below
-    #    `low` the LLM is skipped, and only below where any distress case scored.
-    #    Above `high` a note goes straight to support; between, the LLM decides as
-    #    it does today. `high` minimises expected cost with a missed crisis at 20x
-    #    an unneeded kind message — but under a constraint that outranks the ratio.
-    #    bloom-langgraph's release gate scores any encouragement case routed to
-    #    support as a failure, so no non-distress note may reach support; that
-    #    raises a floor under `high`. "The cascade loses no recall to the LLM"
-    #    holds here by construction, so that check belongs on the test set.
+    # 6. THRESHOLD — two cutoffs on the chosen config's out-of-fold scores, each
+    #    read off the statistic its own band compares.
+    #
+    #    Below `low` the LLM is skipped, and only below where any distress case
+    #    scored. A whole note mean-pools, so a crisis clause inside a long calm note
+    #    is averaged away — 13 of 72 red-team notes skipped that way. So the skip
+    #    band reads the *worst segment* of a note, and `low` is fitted on worst
+    #    segments, out of fold like every other score here.
+    #
+    #    Above `high` a note goes straight to support, judged as written rather than
+    #    by its most alarming fragment. `high` minimises expected cost with a missed
+    #    crisis at 20x an unneeded kind message — but under a constraint that
+    #    outranks the ratio. bloom-langgraph's release gate scores any encouragement
+    #    case routed to support as a failure, so no non-distress note may reach
+    #    support; that raises a floor under `high`. "The cascade loses no recall to
+    #    the LLM" holds here by construction, so that check belongs on the test set.
+    worst_segment_oof = oof_segment_max(
+        selection.chosen.config, x_text, y, folds,
+        segment_features=x_segments, segment_owner=segment_owner, seed=seed,
+    )  # fmt: skip
     cascade = fit_cascade(
         y, selection.chosen.oof, [teacher_votes.get(row.id, ()) for row in train],
         ids=[row.id for row in train], texts=[row.free_text for row in train],
         forbidden=(y == 0), forbidden_label=FORBIDDEN_LABEL,
+        skip_scores=worst_segment_oof, segmentation=segmentation,
     )  # fmt: skip
 
     # 7. FIT — refit on all of train at the chosen config. The CV models existed

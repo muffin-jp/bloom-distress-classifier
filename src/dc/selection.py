@@ -55,6 +55,7 @@ __all__ = [
     "grid",
     "make_estimator",
     "make_folds",
+    "oof_segment_max",
     "probe_best_feeling_config",
     "select",
 ]
@@ -159,6 +160,51 @@ def evaluate_config(
     if np.any(np.isnan(oof)):
         raise ValueError("folds do not cover every row; out-of-fold scores are incomplete")
     return ConfigResult(config, tuple(scores), brier_score(y, oof), oof)
+
+
+def oof_segment_max(
+    config: Config,
+    x_text: np.ndarray,
+    y: np.ndarray,
+    folds: Sequence[Fold],
+    *,
+    segment_features: np.ndarray,
+    segment_owner: np.ndarray,
+    seed: int = 0,
+) -> np.ndarray:
+    """Each row's worst-segment score, from a model that never trained on that row.
+
+    The skip band compares the highest-scoring segment of a note against ``low``,
+    so ``low`` has to be fitted on that statistic — and fitting it on in-sample
+    scores would set it from a model that had already seen those notes, which is
+    exactly the optimism the threshold exists to guard against. So the fold models
+    are refit here and each one scores only the segments of its held-out rows.
+
+    ``segment_owner[i]`` is the row index segment ``i`` came from.
+    """
+    if config.include_feeling:
+        raise ValueError(
+            "segment scoring is undefined for a config that reads the feeling chip: a "
+            "sentence inside a note has no chip of its own"
+        )
+    if segment_features.shape[0] != segment_owner.shape[0]:
+        raise ValueError("segment features and owners differ in length")
+    if segment_features.shape[1] != x_text.shape[1]:
+        raise ValueError("segment features and row features have different widths")
+    missing = set(range(len(y))) - set(segment_owner.tolist())
+    if missing:
+        raise ValueError(f"{len(missing)} row(s) produced no segments, so they cannot be scored")
+
+    out = np.full(len(y), -np.inf, dtype=float)
+    for train_index, val_index in folds:
+        estimator = make_estimator(config, seed=seed)
+        estimator.fit(x_text[train_index], y[train_index])
+        rows = np.flatnonzero(np.isin(segment_owner, val_index))
+        predicted = estimator.predict_proba(segment_features[rows])[:, 1]
+        np.maximum.at(out, segment_owner[rows], predicted)
+    if np.any(np.isneginf(out)):
+        raise ValueError("folds do not cover every row; out-of-fold segment scores are incomplete")
+    return out
 
 
 @dataclass(frozen=True)

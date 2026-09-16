@@ -14,11 +14,27 @@ import pytest
 from conftest import make_row
 from sklearn.linear_model import LogisticRegression
 
-from dc.artifact import ArtifactError, dataset_sha256, is_servable, load, save, source_commit
+from dc.artifact import (
+    ArtifactError,
+    dataset_sha256,
+    is_servable,
+    load,
+    read_segmentation,
+    save,
+    source_commit,
+)
 from dc.features import EMBED_MODEL, EMBED_MODEL_REVISION, FEELINGS, build_features, feeling_one_hot
 from dc.model import DistressModel, FeatureLayout, fit_model, sigmoid
 from dc.schema import Feeling
 from dc.selection import Config
+from dc.text import SEGMENTATION
+
+#: The segmentation as it appears in an artifact, matching dc.report's writer.
+SEGMENTATION_JSON = {
+    "window": SEGMENTATION.window,
+    "stride": SEGMENTATION.stride,
+    "boundary": SEGMENTATION.boundary,
+}
 
 
 def layout(dim: int = 4, *, include_feeling: bool = False) -> FeatureLayout:
@@ -152,15 +168,55 @@ def test_a_model_without_thresholds_is_not_servable() -> None:
     assert not is_servable({})
 
 
-def test_a_model_with_ordered_thresholds_is_servable() -> None:
-    assert is_servable({"thresholds": {"low": 0.1, "high": 0.8}})
+def test_a_model_with_ordered_thresholds_and_a_segmentation_is_servable() -> None:
+    assert is_servable({"thresholds": {"low": 0.1, "high": 0.8}, "segmentation": SEGMENTATION_JSON})
+
+
+def test_a_model_without_a_segmentation_is_not_servable() -> None:
+    """The skip band is only safe as fitted if the consumer splits notes the same way.
+
+    An artifact from before segment scoring has thresholds that look perfectly
+    valid and a rule this code no longer implements, so "has thresholds" stopped
+    being enough to serve on.
+    """
+    assert not is_servable({"thresholds": {"low": 0.1, "high": 0.8}})
+    assert not is_servable({"thresholds": {"low": 0.1, "high": 0.8}, "segmentation": {}})
 
 
 @pytest.mark.parametrize(
     "bands", [{"low": 0.8, "high": 0.1}, {"low": -0.1, "high": 0.5}, {"low": 0.1, "high": 1.5}]
 )
 def test_inverted_or_out_of_range_thresholds_are_not_servable(bands: dict[str, float]) -> None:
-    assert not is_servable({"thresholds": bands})
+    assert not is_servable({"thresholds": bands, "segmentation": SEGMENTATION_JSON})
+
+
+def test_the_recorded_segmentation_round_trips() -> None:
+    read = read_segmentation({"segmentation": SEGMENTATION_JSON})
+    assert (read.window, read.stride, read.boundary) == (
+        SEGMENTATION.window,
+        SEGMENTATION.stride,
+        SEGMENTATION.boundary,
+    )
+
+
+def test_an_artifact_without_a_segmentation_is_refused_rather_than_defaulted() -> None:
+    """Falling back to the current default would serve one rule under another's thresholds."""
+    with pytest.raises(ArtifactError, match="records no segmentation"):
+        read_segmentation({"thresholds": {"low": 0.1, "high": 0.8}})
+
+
+@pytest.mark.parametrize(
+    "block",
+    [
+        {"window": 8, "stride": 4},
+        {"window": "8", "stride": 4, "boundary": r"\s+"},
+        {"window": 0, "stride": 4, "boundary": r"\s+"},
+        {"window": 8, "stride": 4, "boundary": "([unclosed"},
+    ],
+)
+def test_a_malformed_segmentation_is_refused(block: dict[str, object]) -> None:
+    with pytest.raises(ArtifactError):
+        read_segmentation({"segmentation": block})
 
 
 def test_dataset_hash_tracks_content_and_order(tmp_path: Path) -> None:

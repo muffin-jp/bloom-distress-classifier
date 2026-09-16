@@ -35,12 +35,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import numpy as np
-
-from dc.artifact import load
-from dc.cascade import Route, Thresholds, route
+from dc.artifact import load, read_segmentation
+from dc.cascade import Route, Thresholds, route, route_note
 from dc.features import load_embedder
-from dc.text import split_segments
+from dc.serve import score_notes
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 NOTES_PATH = REPO_ROOT / "data" / "redteam.jsonl"
@@ -56,14 +54,13 @@ class Probe:
     worst_segment: float
     worst_text: str
 
-    def route(self, thresholds: Thresholds) -> Route:
-        return route(self.whole, thresholds)
-
     def skips(self, thresholds: Thresholds) -> bool:
-        return self.route(thresholds) is Route.SKIP_LLM
+        """Under the whole-note rule — what the first artifact served."""
+        return route(self.whole, thresholds) is Route.SKIP_LLM
 
     def skips_with_segments(self, thresholds: Thresholds) -> bool:
-        return self.worst_segment < thresholds.low
+        """Under the shipped rule."""
+        return route_note(self.whole, self.worst_segment, thresholds) is Route.SKIP_LLM
 
 
 def load_notes(path: Path = NOTES_PATH) -> list[dict[str, str]]:
@@ -77,29 +74,31 @@ def load_notes(path: Path = NOTES_PATH) -> list[dict[str, str]]:
 
 
 def probe(notes: list[dict[str, str]]) -> list[Probe]:
+    """Score every note through the same path the service uses.
+
+    The segmentation comes from the artifact rather than from this file's imports:
+    the probe has to attack the rule that would actually ship, not the rule this
+    script happens to have been written against.
+    """
     artifact = load()
     embedder = load_embedder()
-    segments_per_note = [split_segments(note["text"]) for note in notes]
-    flat = [segment for segments in segments_per_note for segment in segments]
-    scores = artifact.model.predict_proba_features(np.asarray(embedder.embed(flat), dtype=float))
-
-    out: list[Probe] = []
-    cursor = 0
-    for note, segments in zip(notes, segments_per_note, strict=True):
-        window = scores[cursor : cursor + len(segments)]
-        cursor += len(segments)
-        best = int(np.argmax(window))
-        out.append(
-            Probe(
-                id=note["id"],
-                family=note["family"],
-                text=note["text"],
-                whole=float(window[0]),  # split_segments always yields the whole note first
-                worst_segment=float(window[best]),
-                worst_text=segments[best],
-            )
+    scored = score_notes(
+        [note["text"] for note in notes],
+        artifact.model,
+        embedder,
+        segmentation=read_segmentation(artifact.metadata),
+    )
+    return [
+        Probe(
+            id=note["id"],
+            family=note["family"],
+            text=note["text"],
+            whole=score.whole,
+            worst_segment=score.worst,
+            worst_text=score.worst_segment,
         )
-    return out
+        for note, score in zip(notes, scored, strict=True)
+    ]
 
 
 def render(probes: list[Probe], thresholds: Thresholds) -> str:
@@ -116,11 +115,11 @@ def render(probes: list[Probe], thresholds: Thresholds) -> str:
         f"`low` ({thresholds.low:.4f}) skips the LLM and is answered with generated "
         "encouragement — the only failure in this system that can add a missed crisis.",
         "",
-        f"**{len(skipped)} of {len(probes)} skip the LLM today.** Scoring each note's segments "
-        f"instead — sentences and sliding word windows, skipping only when every segment is "
-        f"below `low` — leaves **{len(still)}**.",
+        f"**{len(still)} of {len(probes)} skip the LLM** under the shipped rule, which scores "
+        "each note's sentences and sliding word windows and skips only when every segment is "
+        f"below `low`. Under the whole-note rule it replaced, **{len(skipped)}** skip.",
         "",
-        "| Family | Notes | Skip today | Skip with segment scoring |",
+        "| Family | Notes | Skip (whole-note rule) | Skip (shipped) |",
         "| --- | --- | --- | --- |",
     ]
     for family in families:
@@ -195,14 +194,16 @@ def main() -> None:
     )
 
     print(f"{len(probes)} distress notes probed against low={thresholds.low:.4f}.")
-    print(f"  skip the LLM today:            {len(skipped)}")
-    print(f"  skip with segment scoring:     {len(still)}")
+    print(f"  skip under the shipped rule:   {len(still)}")
+    print(f"  (whole-note rule, for scale:   {len(skipped)})")
     print(f"  lowest whole-note score:       {min(p.whole for p in probes):.4f}")
     print(f"  lowest worst-segment score:    {min(p.worst_segment for p in probes):.4f}")
-    if skipped:
-        print("\nWorst offenders:")
-        for p in sorted(skipped, key=lambda p: p.whole)[:5]:
-            print(f"  {p.whole:.4f}  (segment {p.worst_segment:.4f})  {p.text[:64]}")
+    # The gate is the rule that ships. `skipped` is kept alongside it because the
+    # gap between the two is the only evidence that segmentation is doing anything.
+    if still:
+        print("\nNotes that still skip the LLM:")
+        for p in sorted(still, key=lambda p: p.worst_segment)[:5]:
+            print(f"  {p.worst_segment:.4f}  (whole {p.whole:.4f})  {p.text[:64]}")
         raise SystemExit(1)
 
 
