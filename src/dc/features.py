@@ -37,7 +37,13 @@ __all__ = [
     "load_embedder",
 ]
 
-# Pinned to match bloom-langgraph's app/config.py exactly.
+# The snapshot this project's artifact was built and evaluated with. It is NOT the
+# revision bloom-langgraph pins (ea78891063587eb050ed4166b20062eaf978037c): an
+# earlier version of this comment claimed the two matched without checking. They
+# were verified on 2026-09-15 to be byte-identical on every file that affects an
+# embedding, and to produce identical embeddings; tests/test_embedder_parity.py
+# re-checks that whenever both repos' weights are present. The pin stays as it is
+# because changing it would change the artifact, and so the test-set record.
 EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 EMBED_MODEL_REVISION = "c9745ed1d9f207416be6d2e6f8de32d1f16199bf"
 
