@@ -1,4 +1,4 @@
-.PHONY: seed propose propose-run generate generate-run review stats splits vendor-model baselines train bench evaluate evaluate-render explain explain-errors test lint types check
+.PHONY: seed propose propose-run generate generate-run review stats splits vendor-model baselines train bench evaluate evaluate-render explain explain-errors redteam test lint types check
 
 # Import the golden cases from the companion repo into data/seed.jsonl.
 # Re-run only if bloom-langgraph's eval dataset changes.
@@ -74,6 +74,11 @@ explain:
 # Explain the test set's recorded errors from saved predictions; nothing is re-scored.
 explain-errors:
 	uv run --extra embed python -m dc.explain --errors
+
+# Attack the skip band with distress notes written to evade it. Free, offline,
+# and non-zero exit if any of them would skip the LLM. Run against every artifact.
+redteam:
+	uv run --extra embed python scripts/redteam.py $(ARGS)
 
 test:
 	uv run pytest -q
