@@ -102,13 +102,23 @@ is about.
 matched pairs split across train and test. The nearest-neighbour explanations did not support
 that, and the analysis was corrected in the open.
 
+**Integration exposed two things the evaluation could not.** The first was a mistake: the
+code claimed the embedder revision matched production's, and it did not. The two snapshots were
+then verified byte-identical, and the served classifier accepts only verified-equivalent
+revisions. The second is a real conflict. With the classifier switched on,
+`bloom-langgraph`'s own release gate fails: seven golden cases that expect encouragement reach
+support, so game frustration stays out of support only 80% of the time against a 100% gate.
+The cost model called those false alarms cheap, and the gate calls them failures. The
+integration ships dark, behind a flag that stays off until that is settled.
+
 ## Before shipping
 
-The [model card](MODEL_CARD.md) sets out what is still open. In short: confirm the 20:1 ratio
-knowing where the cliff is; red-team the skip band, since on test 7 of 20 injection notes
-scored low enough to skip the LLM; collect game notes in first-person, ongoing-state language
-and ordinary off-topic sentences; and add a second reviewer, because every label so far comes
-from one person, alongside a dataset that is 80% synthetic.
+The [model card](MODEL_CARD.md) sets out what is still open. In short: settle what a false
+alarm costs, with the 20:1 cost model and the companion gate side by side; red-team the skip
+band, since on test 7 of 20 injection notes scored low enough to skip the LLM; collect game
+notes in first-person, ongoing-state language and ordinary off-topic sentences; and add a second
+reviewer, because every label so far comes from one person, alongside a dataset that is 80%
+synthetic.
 
 ## Reports
 
@@ -178,4 +188,4 @@ data/  artifacts/  reports/       committed; the audit surface
 | 5 | Cost model, thresholds, cascade | ✅ |
 | 6 | One test-set evaluation | ✅ |
 | 7 | Explanations and model card | ✅ |
-| 8 | Integration into `bloom-langgraph` | — |
+| 8 | Integration into `bloom-langgraph` | ✅ merged dark — its release gate fails with the flag on |

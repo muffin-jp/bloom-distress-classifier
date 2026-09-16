@@ -19,7 +19,7 @@ reviewed support message.
 | Decision | Skip the LLM below **0.0181**; go straight to support above **0.163**; the LLM decides in between |
 | Test set | Scored once, on 2026-09-14; the report was re-rendered 4 times from saved predictions. Every look and render is in `reports/test_ledger.json` |
 | Owner | U.V, muffin Inc. |
-| Status | Evaluated, not yet integrated. Ships behind a kill switch, off by default |
+| Status | Integrated into `bloom-langgraph` behind `CLASSIFIER_ENABLED`, off. With it on, that repo's release gate fails — see [Integration](#integration) |
 
 ## Intended use
 
@@ -173,12 +173,42 @@ across train and test, and called one injection successful. Nearest-neighbour ex
 not support either claim, and the analysis was corrected; the correction is recorded in the
 ledger.
 
+## Integration
+
+The model is integrated into `bloom-langgraph` behind `CLASSIFIER_ENABLED`, **off by default**.
+The served files must hash to the artifact recorded in this repo's test ledger, and a CI check
+enforces it.
+
+**With the flag on, that repo's release gate fails.** The golden cases are this project's test
+set, so this was worked out from the routes saved at the single test look, without scoring them
+again:
+
+| `bloom-langgraph` release gate | With the classifier on | Required |
+| --- | --- | --- |
+| Distress routed to support | 100% | 100% |
+| Game frustration kept out of support | **80%** | 100% |
+| Judge safety pass rate | at most **82.9%** | 100% |
+| Word-limit compliance | at most **82.9%** | 95% |
+
+Seven golden cases that expect encouragement are routed to support, and a support route produces
+no reply to judge. This is the 20:1 decision meeting a gate that defines false alarms differently:
+the cost model treats an unneeded support message as cheap, and the gate treats game frustration
+reaching support as a failure. The flag stays off until that is settled. The next artifact must be
+evaluated here first — a second, recorded look — before the gate is run with it.
+
+**Embedder revision.** This project built the artifact on MiniLM revision `c9745ed1`, and an
+earlier comment in the code claimed that matched production. It does not: `bloom-langgraph` pins
+`ea78891`. Integration caught the mismatch. The two snapshots were then verified byte-identical
+on every file that affects an embedding, producing identical embeddings and identical routes
+across 497 training notes. Production's loader accepts only explicitly verified-equivalent
+revisions, and `tests/test_embedder_parity.py` re-checks the files whenever both repos are present.
+
 ## Ethical considerations
 
 - **Failure is asymmetric by design.** The only route that can add a missed crisis is a safety
-  constraint. A score that is not a finite probability already escalates to the LLM, which is
-  today's behaviour; the integration must do the same on a load error or an embedder mismatch,
-  and is not built yet.
+  constraint. A score that is not a finite probability escalates to the LLM, which is today's
+  behaviour, and so does every integration failure: a refused or failed load, or an exception
+  while scoring.
 - **False alarms have a real cost.** On test, about one in five non-distress notes would reach
   the support message. The message is warm and reviewed, but a player told to seek support
   after an ordinary note may trust the feature less. The business should accept that cost
@@ -189,15 +219,15 @@ ledger.
 
 ## Before shipping, and next
 
-1. Confirm the 20:1 ratio with the business, knowing where the cliff is, and re-read the four
-   notes it depends on (`reports/cascade.md`).
-2. Integrate behind `CLASSIFIER_ENABLED`, off by default, falling back to the LLM on any error.
-3. Red-team the skip band: write distress notes wrapped in injection-style and off-topic text,
+1. **Settle what a false alarm costs**, with both definitions on the table: the 20:1 cost model,
+   and `bloom-langgraph`'s gate, which does not allow game frustration to reach support. Re-read
+   the four notes the ratio depends on (`reports/cascade.md`).
+2. Red-team the skip band: write distress notes wrapped in injection-style and off-topic text,
    and check whether any scores below 0.0181.
-4. Collect for the next version: game notes in first-person, ongoing-state language; ordinary
+3. Collect for the next version: game notes in first-person, ongoing-state language; ordinary
    off-topic sentences; and a second reviewer, so agreement can be measured.
-5. Any changed artifact is evaluated with `make evaluate ARGS='--again "<reason>"'`, and
-   this card is updated to disclose the second look.
+4. Evaluate any new artifact here with `make evaluate ARGS='--again "<reason>"'`, disclose the
+   second look on this card, and only then run `bloom-langgraph`'s gate with the flag on.
 
 ---
 
