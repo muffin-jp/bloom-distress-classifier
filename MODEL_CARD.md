@@ -19,7 +19,7 @@ reviewed support message.
 | Decision | Skip the LLM when every segment of the note scores below **0.0161**; go straight to support when the whole note scores above **1.000** — which never happens, so the support band is closed; the LLM decides everything else. A note in a non-Latin script always escalates |
 | Test set | Scored 2 times — look 2, on 2026-09-17, measures this artifact; look 1 measured the superseded `5709c6e15ed3…`. The report has been re-rendered 6 times from saved predictions. Every look and render is in `reports/test_ledger.json` |
 | Owner | U.V, muffin Inc. |
-| Status | **Evaluated; not yet cleared to ship.** On held-out rows no distress case skipped the LLM and nothing reached support, so both failures of the previous artifact are gone. What it now buys is 14% fewer LLM calls and nothing else — including no golden-case guarantee, which the previous artifact had. Integrated into `bloom-langgraph` behind `CLASSIFIER_ENABLED`, off |
+| Status | **Evaluated and gate-clean; the flag is still off.** No held-out distress case skipped the LLM, nothing reached support, and `bloom-langgraph`'s release gate passes with the flag on. What it buys is 14% fewer LLM calls and nothing else — including no golden-case guarantee, which the previous artifact had. Latency is unmeasured |
 
 ## Intended use
 
@@ -260,10 +260,31 @@ unneeded support message as cheap, and the gate treats game frustration reaching
 failure.
 
 **The current artifact closes the support band entirely**, by making the gate's rule a
-constraint on `high` rather than a price traded against it. Those eight diversions cannot recur,
-because nothing routes to support at all. The gate's failure mode changes shape rather than
-disappearing: the skip band can now break it the other way, by routing a golden *distress* case
-to encouragement. Nothing yet rules that out, and the eval has not been re-run.
+constraint on `high` rather than a price traded against it. Re-running that repo's real eval
+with the flag on (2026-09-17) passes every metric:
+
+| `bloom-langgraph` release gate | Previous artifact | This artifact | Required |
+| --- | --- | --- | --- |
+| Distress routed to support | 100% | **100%** | 100% |
+| Game frustration kept out of support | 80% | **100%** | 100% |
+| Judge safety pass rate | 80.5% | **100%** | 100% |
+| Word-limit compliance | 80.5% | **100%** | 95% |
+| Mean empathy · tone | — | 4.59 · 4.83 | 4.00 |
+
+The classifier changed the route of 6 of the 51 cases, all of them encouragement cases that
+skipped the Haiku call and landed on encouragement — the path they expect. All 10 distress
+cases escalated, and Haiku caught every one.
+
+**That 10 of 10 is the answer to what this artifact gave up, and it is a weak answer.** Ten
+cases with no misses put a 95% lower bound of only **0.741** on the per-case catch rate, and the
+teacher is sampled, so this is one draw. What it establishes is that routing did not break the
+gate — not that the golden guarantee was safe to lose.
+
+The comparison that matters for a shipping decision is the other one. Against production as it
+runs today — flag off, every note to the LLM — this artifact's distress path is *identical*:
+everything escalates. The 0.741 bound is a fact about `claude-haiku-4-5` that production already
+lives with, and this change neither adds to it nor subtracts from it. The loss is only relative
+to the previous artifact, which was never shippable because it failed this gate.
 
 **Two copies of one rule, and what keeps them together.** `bloom-langgraph` re-implements the
 splitting and scope rules in order to serve the model. Nothing about that is self-correcting: a
@@ -281,9 +302,9 @@ score. Three guards, in order of what they are worth:
    fails 12 of those tests and is refused by the loader.
 3. **No test-set row is exported**, so the fixture carries no release-gate answers.
 
-The flag stays off. What remains: re-run that repo's gate with the flag on, measure latency
-now that a note costs about ten embeddings instead of one, and decide whether 14% fewer LLM
-calls justifies the machinery.
+The flag is still off, and the gate passing is a precondition rather than the decision. What
+remains: measure latency, now that a note costs about ten embeddings instead of one, and decide
+whether 14% fewer LLM calls justifies two rules kept in sync across two repositories.
 
 **Embedder revision.** This project built the artifact on MiniLM revision `c9745ed1`, and an
 earlier comment in the code claimed that matched production. It does not: `bloom-langgraph` pins
