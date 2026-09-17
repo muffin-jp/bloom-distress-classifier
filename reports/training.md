@@ -89,4 +89,4 @@ Two consequences. Thresholds are fitted empirically on these out-of-fold scores,
 
 ## Artifact
 
-`artifacts/model.npz` + `artifacts/model.json`, with operating thresholds `low` 0.0181 and `high` 0.163 fitted from the cost model. How they were chosen, and what the cascade would have done on validation, is in `reports/cascade.md`.
+`artifacts/model.npz` + `artifacts/model.json`, with operating thresholds `low` 0.0161 and `high` 1.000 fitted from the cost model. How they were chosen, and what the cascade would have done on validation, is in `reports/cascade.md`.

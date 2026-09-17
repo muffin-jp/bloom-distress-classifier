@@ -35,7 +35,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from dc.artifact import load, read_segmentation
+from dc.artifact import load, read_scope, read_segmentation
 from dc.cascade import Route, Thresholds, route, route_note
 from dc.features import load_embedder
 from dc.serve import score_notes
@@ -53,13 +53,16 @@ class Probe:
     whole: float
     worst_segment: float
     worst_text: str
+    out_of_scope: str
 
     def skips(self, thresholds: Thresholds) -> bool:
         """Under the whole-note rule — what the first artifact served."""
         return route(self.whole, thresholds) is Route.SKIP_LLM
 
     def skips_with_segments(self, thresholds: Thresholds) -> bool:
-        """Under the shipped rule."""
+        """Under the shipped rule: segments, and the scope rule that outranks them."""
+        if self.out_of_scope:
+            return False
         return route_note(self.whole, self.worst_segment, thresholds) is Route.SKIP_LLM
 
 
@@ -87,6 +90,7 @@ def probe(notes: list[dict[str, str]]) -> list[Probe]:
         artifact.model,
         embedder,
         segmentation=read_segmentation(artifact.metadata),
+        scope=read_scope(artifact.metadata),
     )
     return [
         Probe(
@@ -96,6 +100,7 @@ def probe(notes: list[dict[str, str]]) -> list[Probe]:
             whole=score.whole,
             worst_segment=score.worst,
             worst_text=score.worst_segment,
+            out_of_scope=score.out_of_scope,
         )
         for note, score in zip(notes, scored, strict=True)
     ]
@@ -115,9 +120,18 @@ def render(probes: list[Probe], thresholds: Thresholds) -> str:
         f"`low` ({thresholds.low:.4f}) skips the LLM and is answered with generated "
         "encouragement — the only failure in this system that can add a missed crisis.",
         "",
-        f"**{len(still)} of {len(probes)} skip the LLM** under the shipped rule, which scores "
-        "each note's sentences and sliding word windows and skips only when every segment is "
-        f"below `low`. Under the whole-note rule it replaced, **{len(skipped)}** skip.",
+        f"**{len(still)} of {len(probes)} skip the LLM** under the shipped rule: each note's "
+        "sentences and sliding word windows are scored, a note skips only when every segment "
+        "is below `low`, and a note in a non-Latin script escalates whatever it scores. Under "
+        f"the whole-note rule this replaced, **{len(skipped)}** skip.",
+        "",
+        "> **Read this as a guarantee, not a finding.** `low` is fitted so that no note in",
+        "> this set can skip — see `reports/cascade.md`. These notes constrained the",
+        "> artifact, so they cannot also test it. Attack notes written *after* the fit are",
+        "> what would make this a probe again.",
+        "",
+        f"{sum(1 for p in probes if p.out_of_scope)} of the notes are escalated by the scope "
+        "rule rather than by their score.",
         "",
         "| Family | Notes | Skip (whole-note rule) | Skip (shipped) |",
         "| --- | --- | --- | --- |",
@@ -177,6 +191,7 @@ def main() -> None:
         "skipped_with_segment_scoring": [p.id for p in still],
         "minimum_whole_score": min(p.whole for p in probes),
         "minimum_worst_segment": min(p.worst_segment for p in probes),
+        "out_of_scope": [p.id for p in probes if p.out_of_scope],
         "probes": [
             {
                 "id": p.id,
@@ -185,6 +200,7 @@ def main() -> None:
                 "whole": p.whole,
                 "worst_segment": p.worst_segment,
                 "worst_text": p.worst_text,
+                "out_of_scope": p.out_of_scope,
             }  # fmt: skip
             for p in probes
         ],
@@ -198,6 +214,7 @@ def main() -> None:
     print(f"  (whole-note rule, for scale:   {len(skipped)})")
     print(f"  lowest whole-note score:       {min(p.whole for p in probes):.4f}")
     print(f"  lowest worst-segment score:    {min(p.worst_segment for p in probes):.4f}")
+    print(f"  escalated by the scope rule:   {sum(1 for p in probes if p.out_of_scope)}")
     # The gate is the rule that ships. `skipped` is kept alongside it because the
     # gap between the two is the only evidence that segmentation is doing anything.
     if still:

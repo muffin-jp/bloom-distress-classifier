@@ -33,7 +33,7 @@ import numpy as np
 
 from dc.features import EMBED_MODEL, EMBED_MODEL_REVISION
 from dc.model import DistressModel, FeatureLayout
-from dc.text import Segmentation
+from dc.text import ScopeRule, Segmentation
 
 __all__ = [
     "ARTIFACT_DIR",
@@ -43,6 +43,7 @@ __all__ = [
     "dataset_sha256",
     "is_servable",
     "load",
+    "read_scope",
     "read_segmentation",
     "save",
     "source_commit",
@@ -171,6 +172,26 @@ def read_segmentation(metadata: dict[str, Any]) -> Segmentation:
         raise ArtifactError(str(exc)) from exc
 
 
+def read_scope(metadata: dict[str, Any]) -> ScopeRule:
+    """The scope rule the artifact was fitted with. Refused if absent, like the segmentation.
+
+    A consumer that silently dropped this rule would start skipping the LLM on
+    Japanese and Korean notes, on the strength of scores from a model that cannot
+    read them — with no error anywhere.
+    """
+    raw = metadata.get("scope")
+    if not isinstance(raw, dict):
+        raise ArtifactError(
+            "artifact records no scope rule, so which notes the model may judge at all "
+            "is unknown. Retrain rather than assuming the default."
+        )
+    block = cast("dict[str, Any]", raw)
+    flag = block.get("escalate_non_latin_letters")
+    if not isinstance(flag, bool):
+        raise ArtifactError(f"scope block is malformed: {block!r}")
+    return ScopeRule(escalate_non_latin_letters=flag)
+
+
 def is_servable(metadata: dict[str, Any]) -> bool:
     """True only once operating thresholds have been fitted.
 
@@ -193,6 +214,7 @@ def is_servable(metadata: dict[str, Any]) -> bool:
     # way, so an artifact that does not say how is not servable either.
     try:
         read_segmentation(metadata)
+        read_scope(metadata)
     except ArtifactError:
         return False
     return True

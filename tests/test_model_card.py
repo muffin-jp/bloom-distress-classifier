@@ -7,6 +7,7 @@ the test set again, and this fails until the card is updated to match.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -19,6 +20,15 @@ CARD = REPO / "MODEL_CARD.md"
 
 def load(relative: str) -> Any:
     return json.loads((REPO / relative).read_text(encoding="utf-8"))
+
+
+def artifact_hash() -> str:
+    """The committed artifact's hash, computed the way the ledger records it."""
+    digest = hashlib.sha256()
+    for name in ("model.npz", "model.json"):
+        digest.update(name.encode())
+        digest.update((REPO / "artifacts" / name).read_bytes())
+    return digest.hexdigest()
 
 
 def expected_facts() -> dict[str, str]:
@@ -38,7 +48,11 @@ def expected_facts() -> dict[str, str]:
     )  # fmt: skip
 
     return {
-        "artifact hash": ledger["looks"][0]["artifact_sha256"][:12],
+        # The card describes the committed artifact; the ledger records what was
+        # evaluated. They are the same only until a retrain, and the card has to
+        # state both so a reader can tell whether the test numbers describe it.
+        "artifact hash": artifact_hash()[:12],
+        "evaluated artifact hash": ledger["looks"][0]["artifact_sha256"][:12],
         "low threshold": f"{thresholds['low']:.4f}",
         "high threshold": f"{thresholds['high']:.3f}",
         "cross-validated PR-AUC": f"{model['selection']['cv_pr_auc_mean']:.3f}",

@@ -514,12 +514,12 @@
     ]
   },
   "cascade": {
-    "low": 0.01814906857907772,
-    "high": 0.1627914011478424,
+    "low": 0.016118823237433286,
+    "high": 1.0,
     "routes": {
-      "below_low": "skip-llm",
-      "between_inclusive": "escalate",
-      "above_high": "support",
+      "worst_segment_below_low": "skip-llm",
+      "whole_note_above_high": "support",
+      "otherwise": "escalate",
       "invalid_score": "escalate"
     },
     "cost_model": {
@@ -527,15 +527,16 @@
       "false_positive": 1.0
     },
     "low_margin": 0.5,
-    "fitted_on": "out-of-fold scores of the chosen config, grouped CV on train",
+    "low_fitted_on": "out-of-fold worst-segment scores of the chosen config, grouped CV on train",
+    "high_fitted_on": "out-of-fold whole-note scores of the same",
     "validation": {
       "llm_alone_expected_recall": 0.8633093525179856,
-      "cascade_expected_recall": 1.0,
+      "cascade_expected_recall": 0.8633093525179856,
       "llm_alone_expected_cost": 381.3333333333333,
-      "cascade_expected_cost": 61.0,
-      "skip_share": 0.26156941649899396,
-      "escalate_share": 0.3420523138832998,
-      "support_share": 0.3963782696177062,
+      "cascade_expected_cost": 381.3333333333333,
+      "skip_share": 0.1448692152917505,
+      "escalate_share": 0.8551307847082495,
+      "support_share": 0.0,
       "skip_miss_upper_bound_95": 0.021321445229927072
     }
   }

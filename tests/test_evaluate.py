@@ -32,6 +32,7 @@ from dc.features import EMBED_MODEL, EMBED_MODEL_REVISION
 from dc.model import DistressModel, FeatureLayout
 from dc.schema import Category, Provenance, Row
 from dc.splits import build_assignment
+from dc.text import SEGMENTATION
 
 REPO = Path(__file__).resolve().parents[1]
 BANDS = Thresholds(low=0.1, high=0.8)
@@ -111,11 +112,14 @@ def test_scoring_reads_only_test_rows() -> None:
     layout = FeatureLayout(EMBED_MODEL, EMBED_MODEL_REVISION, 2, False)
     model = DistressModel(coef=np.array([6.0, 0.0]), intercept=-3.0, layout=layout)
 
-    predictions = score_test_split(rows, assignment, model, spy, BANDS, {})
+    predictions = score_test_split(rows, assignment, model, spy, BANDS, {}, SEGMENTATION)
 
     test_texts = {r.free_text for r in rows if assignment[r.id] == "test"}
     train_texts = {r.free_text for r in rows if assignment[r.id] == "train"}
-    assert set(spy.seen) == test_texts
+    # Segment scoring embeds each note's parts as well as the note, so the seen
+    # texts are the segments of test rows — never anything from another row.
+    allowed = {segment for text in test_texts for segment in SEGMENTATION.split(text)}
+    assert test_texts <= set(spy.seen) <= allowed
     assert not train_texts & set(spy.seen)
     assert {p.id for p in predictions} == {r.id for r in rows if assignment[r.id] == "test"}
 
@@ -127,7 +131,7 @@ def test_scoring_refuses_an_unsound_split() -> None:
     layout = FeatureLayout(EMBED_MODEL, EMBED_MODEL_REVISION, 2, False)
     model = DistressModel(coef=np.zeros(2), intercept=0.0, layout=layout)
     with pytest.raises(ValueError, match="unsound"):
-        score_test_split(rows, assignment, model, SpyEmbedder(), BANDS, {})
+        score_test_split(rows, assignment, model, SpyEmbedder(), BANDS, {}, SEGMENTATION)
 
 
 def test_only_the_evaluator_ever_asks_for_test_rows() -> None:
@@ -309,3 +313,54 @@ def test_the_report_says_how_many_times_the_test_set_was_seen() -> None:
     twice = render_markdown(outcome, looks=[object(), object()], validation={}, cv_pr_auc=None)
     assert "first and only look" in once
     assert "evaluated 2 times" in twice
+
+
+# --- the evaluator routes the way the service routes ----------------------------------
+
+
+class ClauseEmbedder:
+    """Dimension 0 is the share of alarming words — the property mean pooling has."""
+
+    dim = 2
+
+    def embed(self, texts: Sequence[str]) -> np.ndarray:
+        out = np.zeros((len(texts), 2), dtype=np.float32)
+        for row, text in enumerate(texts):
+            words = text.split()
+            out[row] = (sum(w == "unsafe" for w in words) / max(len(words), 1), 1.0)
+        return out
+
+
+def test_a_diluted_test_note_escalates_rather_than_skipping() -> None:
+    """The test look must measure the shipped rule, not the one it replaced.
+
+    The note's crisis clause is diluted until the whole note scores below `low`;
+    the clause survives as a segment, so the recorded route is `escalate`.
+    """
+    diluted = "cleared it again and again and again and again and again. unsafe"
+    rows = [*corpus(), make_row("dilute", category=Category.DISTRESS, free_text=diluted)]
+    assignment = build_assignment(rows)
+    assignment["dilute"] = "test"
+
+    layout = FeatureLayout(EMBED_MODEL, EMBED_MODEL_REVISION, 2, False)
+    model = DistressModel(coef=np.array([14.0, 0.0]), intercept=-5.0, layout=layout)
+    bands = Thresholds(low=0.05, high=0.95)
+
+    predictions = score_test_split(rows, assignment, model, ClauseEmbedder(), bands, {},
+                                   SEGMENTATION)  # fmt: skip
+    note = next(p for p in predictions if p.id == "dilute")
+
+    assert note.score < bands.low  # the whole note looks safe
+    assert note.worst is not None and note.worst >= bands.low  # one segment does not
+    assert note.route == "escalate"
+    assert "unsafe" in note.worst_segment
+
+
+def test_predictions_written_before_segment_scoring_still_render() -> None:
+    """Their skip statistic *was* the whole-note score, so that is what is reproduced."""
+    old = Prediction(
+        id="x", category="distress", label=1, golden=False, feeling="tired",
+        text="a note", score=0.4, keyword=0.0, route="escalate", teacher_votes=(1, 1, 0),
+    )  # fmt: skip
+    assert old.worst is None
+    assert old.skip_score == old.score

@@ -13,6 +13,11 @@ evaluation, explanations, and a [model card](MODEL_CARD.md).
 
 ## Results
 
+> **These describe the superseded artifact `5709c6e15ed3…`.** The current one, built after
+> red-teaming, routes differently and has **not** been scored on the test set. The model
+> weights are unchanged, so the PR-AUC and calibration figures carry over; every number that
+> depends on a route does not. See [the model card](MODEL_CARD.md).
+
 Scored **once** on a held-out test set of 191 notes, including the 44 cases that gate
 releases in the companion repo. The look is recorded in `reports/test_ledger.json`.
 
@@ -34,26 +39,33 @@ support cutoff, which a product decision set; it is not a flaw in how the model 
 ![Precision–recall on the test set](reports/plots/pr_curve.svg)
 
 **And then red-teaming broke it.** Of 72 distress notes written to evade the skip band,
-**13 skip the LLM entirely.** The model is not shippable as fitted — see below.
+13 skipped the LLM entirely. That is fixed in the current artifact, which changed both
+thresholds — see below.
 
 ## How it works
 
 ```
-note ─→ all-MiniLM-L6-v2 (frozen) ─→ 385 weights ─→ score
-                                                     │
-          score < 0.0181  ─→  encouragement           (no LLM call)
-          in between      ─→  claude-haiku-4-5 decides (today's behaviour)
-          score > 0.163   ─→  reviewed support message (no LLM call)
+note ─→ sentences + sliding windows ─→ all-MiniLM-L6-v2 (frozen) ─→ 385 weights
+                                                                        │
+   every segment < 0.0161  ─→  encouragement            (no LLM call)
+   whole note   > 1.000    ─→  reviewed support message (never: the band is closed)
+   anything else           ─→  claude-haiku-4-5 decides (today's behaviour)
+   non-Latin script        ─→  claude-haiku-4-5 decides (whatever it scored)
 ```
 
-- **`low` is a safety constraint.** Skipping the LLM is the only route that can add a missed
-  crisis, so `low` sits at half the lowest score any validation distress case received.
-- **`high` is a cost decision.** It minimises expected cost with a missed crisis treated as 20
-  times an unneeded support message. That ratio sits just past a cliff, and
-  [`reports/cascade.md`](reports/cascade.md) shows where it is and the four labels the ratio
-  depends on.
+- **The two bands read different statistics.** The skip band compares a note's *worst*
+  segment, because mean pooling lets a long calm note hide a short alarming one. The support
+  band compares the whole note, because routing on fragments would send a note to support for
+  one clause read out of context.
+- **`low` is a safety constraint.** It sits at half the lowest worst-segment score received by
+  any note that must not skip — the labelled distress rows, and the adversarial probe. The
+  probe binds, so `make redteam` now passes by construction rather than by luck.
+- **`high` is a product rule, not a cost decision any more.** The companion repo's release
+  gate forbids a non-distress note reaching support; that constraint outranks the 20:1 ratio
+  and closes the band. [`reports/cascade.md`](reports/cascade.md) has the detail, including
+  the single contested label that sets the floor.
 - **Failure lands on today's behaviour.** A score that is not a finite probability escalates
-  to the LLM.
+  to the LLM, and so does a note the embedder cannot read.
 
 ## Explaining a decision
 
@@ -126,13 +138,16 @@ integration ships dark, behind a flag that stays off until that is settled.
 
 ## Before shipping
 
-**Neither band is shippable as fitted**, which is the main result of the last two milestones.
-The support band fails the companion repo's release gate; the skip band fails red-teaming. The
-[model card](MODEL_CARD.md) has the detail. In short: fix the skip band with segment-level
-scoring and decide what happens to non-English notes; settle what a false alarm costs, with the
-20:1 cost model and the gate side by side; collect dilution examples and ordinary off-topic
-sentences; and add a second reviewer, because every label so far comes from one person,
-alongside a dataset that is 80% synthetic.
+Both failures of the previous artifact are now addressed **by construction** — and that phrase
+is the point. The support band is closed, so it cannot fail the gate; `low` is fitted below
+every probe note, so none can skip. Neither claim has met a held-out row.
+
+What remains, in order: take the second recorded test look, because every test number here
+describes the artifact that was replaced; write new attack notes, because the old ones now
+constrain the fit instead of testing it; re-read `cur-pair-17-life-v03`, the one contested
+label that closes the support band; and decide whether 14% fewer LLM calls justifies the
+component at all, given it adds no catches and no false alarms. Then: a second reviewer,
+because every label so far comes from one person, alongside a dataset that is 80% synthetic.
 
 ## Reports
 
@@ -204,5 +219,6 @@ data/  artifacts/  reports/       committed; the audit surface
 | 5 | Cost model, thresholds, cascade | ✅ |
 | 6 | One test-set evaluation | ✅ |
 | 7 | Explanations and model card | ✅ |
-| 8 | Integration into `bloom-langgraph` | ✅ merged dark — its release gate fails with the flag on |
-| — | Red-team the skip band | ✅ 13 of 72 notes skip; segment scoring takes it to 0 |
+| 8 | Integration into `bloom-langgraph` | ✅ merged dark — the flag is still off |
+| — | Red-team the skip band | ✅ 13 of 72 notes skipped; segment scoring and a constrained `low` take it to 0 |
+| — | Second test look for the new artifact | ⬜ not taken |

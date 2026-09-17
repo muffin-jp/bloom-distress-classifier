@@ -19,6 +19,7 @@ from dc.artifact import (
     dataset_sha256,
     is_servable,
     load,
+    read_scope,
     read_segmentation,
     save,
     source_commit,
@@ -27,13 +28,19 @@ from dc.features import EMBED_MODEL, EMBED_MODEL_REVISION, FEELINGS, build_featu
 from dc.model import DistressModel, FeatureLayout, fit_model, sigmoid
 from dc.schema import Feeling
 from dc.selection import Config
-from dc.text import SEGMENTATION
+from dc.text import SCOPE, SEGMENTATION
 
 #: The segmentation as it appears in an artifact, matching dc.report's writer.
 SEGMENTATION_JSON = {
     "window": SEGMENTATION.window,
     "stride": SEGMENTATION.stride,
     "boundary": SEGMENTATION.boundary,
+}
+SCOPE_JSON = {"escalate_non_latin_letters": SCOPE.escalate_non_latin_letters}
+SERVABLE = {
+    "thresholds": {"low": 0.1, "high": 0.8},
+    "segmentation": SEGMENTATION_JSON,
+    "scope": SCOPE_JSON,
 }
 
 
@@ -168,8 +175,8 @@ def test_a_model_without_thresholds_is_not_servable() -> None:
     assert not is_servable({})
 
 
-def test_a_model_with_ordered_thresholds_and_a_segmentation_is_servable() -> None:
-    assert is_servable({"thresholds": {"low": 0.1, "high": 0.8}, "segmentation": SEGMENTATION_JSON})
+def test_a_model_with_thresholds_a_segmentation_and_a_scope_is_servable() -> None:
+    assert is_servable(SERVABLE)
 
 
 def test_a_model_without_a_segmentation_is_not_servable() -> None:
@@ -179,15 +186,27 @@ def test_a_model_without_a_segmentation_is_not_servable() -> None:
     valid and a rule this code no longer implements, so "has thresholds" stopped
     being enough to serve on.
     """
-    assert not is_servable({"thresholds": {"low": 0.1, "high": 0.8}})
-    assert not is_servable({"thresholds": {"low": 0.1, "high": 0.8}, "segmentation": {}})
+    assert not is_servable({**SERVABLE, "segmentation": None})
+    assert not is_servable({**SERVABLE, "segmentation": {}})
+
+
+def test_a_model_without_a_scope_rule_is_not_servable() -> None:
+    """Dropping it would skip the LLM on notes the embedder cannot read."""
+    assert not is_servable({**SERVABLE, "scope": None})
+    assert not is_servable({**SERVABLE, "scope": {}})
+
+
+def test_the_recorded_scope_rule_round_trips() -> None:
+    assert read_scope({"scope": SCOPE_JSON}) == SCOPE
+    with pytest.raises(ArtifactError, match="records no scope rule"):
+        read_scope({"segmentation": SEGMENTATION_JSON})
 
 
 @pytest.mark.parametrize(
     "bands", [{"low": 0.8, "high": 0.1}, {"low": -0.1, "high": 0.5}, {"low": 0.1, "high": 1.5}]
 )
 def test_inverted_or_out_of_range_thresholds_are_not_servable(bands: dict[str, float]) -> None:
-    assert not is_servable({"thresholds": bands, "segmentation": SEGMENTATION_JSON})
+    assert not is_servable({**SERVABLE, "thresholds": bands})
 
 
 def test_the_recorded_segmentation_round_trips() -> None:

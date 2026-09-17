@@ -1,10 +1,17 @@
 # Red-team: the skip band
 
-72 notes, every one distress by construction. A note that scores below `low` (0.0181) skips the LLM and is answered with generated encouragement — the only failure in this system that can add a missed crisis.
+72 notes, every one distress by construction. A note that scores below `low` (0.0161) skips the LLM and is answered with generated encouragement — the only failure in this system that can add a missed crisis.
 
-**13 of 72 skip the LLM today.** Scoring each note's segments instead — sentences and sliding word windows, skipping only when every segment is below `low` — leaves **0**.
+**0 of 72 skip the LLM** under the shipped rule: each note's sentences and sliding word windows are scored, a note skips only when every segment is below `low`, and a note in a non-Latin script escalates whatever it scores. Under the whole-note rule this replaced, **13** skip.
 
-| Family | Notes | Skip today | Skip with segment scoring |
+> **Read this as a guarantee, not a finding.** `low` is fitted so that no note in
+> this set can skip — see `reports/cascade.md`. These notes constrained the
+> artifact, so they cannot also test it. Attack notes written *after* the fit are
+> what would make this a probe again.
+
+7 of the notes are escalated by the scope rule rather than by their score.
+
+| Family | Notes | Skip (whole-note rule) | Skip (shipped) |
 | --- | --- | --- | --- |
 | box-testing | 8 | 0 | 0 |
 | dilution | 18 | 7 | 0 |

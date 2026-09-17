@@ -46,12 +46,14 @@ import numpy as np
 
 from dc.baselines import KeywordBaseline
 from dc.calibration import Bin, brier_score, expected_calibration_error, reliability_bins
-from dc.cascade import CostModel, Outcome, Route, Thresholds, route, simulate
+from dc.cascade import CostModel, Outcome, Route, Thresholds, simulate
 from dc.features import Embedder
 from dc.metrics import CategoryScore, Scores, bootstrap_ci, per_category_columns, score
 from dc.model import DistressModel
 from dc.schema import Row
+from dc.serve import score_notes
 from dc.splits import Split, check_leakage, split_rows
+from dc.text import Segmentation
 
 __all__ = [
     "CascadeResult",
@@ -120,6 +122,12 @@ class Prediction:
     keyword: float
     route: str
     teacher_votes: tuple[int, ...] = ()
+    #: Highest score over the note's segments, which is what the skip band reads.
+    #: ``None`` in predictions written before segment scoring existed, where the
+    #: skip statistic *was* the whole-note score — see :attr:`skip_score`.
+    worst: float | None = None
+    #: The segment that scored :attr:`worst` — what to show a reviewer asking why.
+    worst_segment: str = ""
 
     @property
     def teacher(self) -> float | None:
@@ -127,6 +135,16 @@ class Prediction:
         if not self.teacher_votes:
             return None
         return sum(self.teacher_votes) / len(self.teacher_votes)
+
+    @property
+    def skip_score(self) -> float:
+        """The statistic the skip band compared for this row, under the rule it was scored by.
+
+        Not a default standing in for a missing value: a prediction from before
+        segment scoring was routed by its whole-note score, so returning that
+        reproduces the rule that look was taken under rather than guessing at one.
+        """
+        return self.score if self.worst is None else self.worst
 
 
 # --- scoring: the only code that reads test rows ----------------------------------
@@ -139,6 +157,7 @@ def score_test_split(
     embedder: Embedder,
     thresholds: Thresholds,
     teacher_votes: Mapping[str, Sequence[int]],
+    segmentation: Segmentation,
 ) -> list[Prediction]:
     problems = check_leakage(list(rows), dict(assignment))
     if problems:
@@ -146,7 +165,11 @@ def score_test_split(
     test = split_rows(list(rows), dict(assignment), "test")
     if not test:
         raise ValueError("the test split is empty")
-    scores = model.predict_proba(test, embedder)
+    # Scored through dc.serve, the same path the service uses, so the recorded
+    # routes are the routes production would give these notes.
+    scored = score_notes(
+        [row.free_text for row in test], model, embedder, segmentation=segmentation
+    )
     keyword = KeywordBaseline().predict_proba(test)
     return [
         Prediction(
@@ -156,12 +179,14 @@ def score_test_split(
             golden=row.is_golden,
             feeling=row.feeling.value,
             text=row.free_text,
-            score=float(s),
+            score=n.whole,
             keyword=float(k),
-            route=route(float(s), thresholds).value,
+            route=n.route(thresholds).value,
             teacher_votes=tuple(int(v) for v in teacher_votes.get(row.id, ())),
+            worst=n.worst,
+            worst_segment=n.worst_segment,
         )
-        for row, s, k in zip(test, scores, keyword, strict=True)
+        for row, n, k in zip(test, scored, keyword, strict=True)
     ]
 
 
@@ -270,9 +295,15 @@ class TestResults:
     targets: tuple[Target, ...]
 
 
-def _flags(scores: np.ndarray, teacher: np.ndarray, thresholds: Thresholds) -> np.ndarray:
-    """P(routed to support) per row under the cascade — route() in vector form."""
-    return np.where(scores > thresholds.high, 1.0, np.where(scores < thresholds.low, 0.0, teacher))
+def _flags(
+    scores: np.ndarray, worst: np.ndarray, teacher: np.ndarray, thresholds: Thresholds
+) -> np.ndarray:
+    """P(routed to support) per row under the cascade — route_note() in vector form.
+
+    Support reads the whole note; the skip band reads the worst segment.
+    """
+    support = scores > thresholds.high
+    return np.where(support, 1.0, np.where(worst < thresholds.low, 0.0, teacher))
 
 
 def _paired_difference_ci(
@@ -308,12 +339,13 @@ def _cascade_result(
         raise ValueError("no test rows with teacher votes and a positive label")
     y = np.array([p.label for p in voted])
     s = np.array([p.score for p in voted])
+    w = np.array([p.skip_score for p in voted])
     q = np.array([p.teacher for p in voted], dtype=float)
-    cascade_flags = _flags(s, q, thresholds)
+    cascade_flags = _flags(s, w, q, thresholds)
     return CascadeResult(
         n=len(voted),
         positives=int(np.sum(y)),
-        cascade=simulate(y, s, q, thresholds, costs=costs, name="cascade"),
+        cascade=simulate(y, s, q, thresholds, costs=costs, name="cascade", skip_scores=w),
         llm_alone=simulate(y, s, q, Thresholds(0.0, 1.0), costs=costs, name="LLM alone (today)"),
         teacher=score(y, q, threshold=0.5, n_bootstrap=n_bootstrap, seed=seed),
         model=score(y, s, threshold=thresholds.high, n_bootstrap=n_bootstrap, seed=seed),
@@ -878,7 +910,14 @@ def results_json(results: TestResults, looks: Sequence[Any]) -> dict[str, Any]:
 
 
 def main() -> None:
-    from dc.artifact import ARTIFACT_DIR, dataset_sha256, is_servable, load, source_commit
+    from dc.artifact import (
+        ARTIFACT_DIR,
+        dataset_sha256,
+        is_servable,
+        load,
+        read_segmentation,
+        source_commit,
+    )
     from dc.ledger import (
         EVALUATOR_FILES,
         MEASURED_INPUTS,
@@ -934,7 +973,7 @@ def main() -> None:
 
         predictions = score_test_split(
             load_all_rows(), load_assignment(), artifact.model, load_embedder(), thresholds,
-            load_teacher_votes(),
+            load_teacher_votes(), read_segmentation(artifact.metadata),
         )  # fmt: skip
         # Recorded before the predictions are saved and before a single number is
         # computed or shown: a crash from here on is still a look.

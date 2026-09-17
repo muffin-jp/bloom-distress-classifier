@@ -28,6 +28,7 @@ __all__ = [
     "artifact_metadata",
     "render_cascade_markdown",
     "render_markdown",
+    "scope_metadata",
     "segmentation_metadata",
     "summarize",
     "thresholds_metadata",
@@ -287,14 +288,29 @@ def render_cascade_markdown(summary: TrainingSummary) -> str:
         "## `low` is a safety constraint, not an optimisation",
         "",
         "Skipping the LLM is the only route that can add a missed crisis, so `low` is "
-        "not tuned for cost. The lowest **worst-segment** score any validation distress "
-        f"case received was **{fit.low.lowest_positive_score:.4f}**; `low` keeps "
-        f"{fit.low.margin:.0%} of it, **{low:.4f}**. No validation distress case falls "
-        "in the skip band.",
+        "not tuned for cost. It sits at "
+        f"{fit.low.margin:.0%} of the lowest **worst-segment** score received by any note "
+        "that must not skip — and there are two kinds of those, with the lower deciding.",
         "",
         "It is fitted on worst-segment scores because that is the statistic the rule "
         "compares. Fitting on whole-note scores instead would measure the margin against "
         "a quantity the skip band never looks at.",
+        "",
+        "| Must not skip | Lowest worst-segment score | Would give `low` |",
+        "| --- | --- | --- |",
+        f"| {fit.low.n_positive} labelled distress rows (out of fold) "
+        f"| {fit.low.lowest_positive_score:.4f} "
+        f"| {fit.low.margin * fit.low.lowest_positive_score:.4f} |",
+    ]
+    if fit.low.adversarial is not None:
+        a = fit.low.adversarial
+        lines.append(
+            f"| {a.n} adversarial probe notes (shipped model) | {a.lowest:.4f} "
+            f"| {fit.low.margin * a.lowest:.4f} |"
+        )
+    lines += [
+        "",
+        f"**`low` = {low:.4f}.** No validation distress case falls in the skip band.",
         "",
         f"Zero misses among {fit.low.n_positive} is still a finite sample. The honest "
         "form of the claim: the true share of distress cases that would skip the LLM is "
@@ -308,6 +324,43 @@ def render_cascade_markdown(summary: TrainingSummary) -> str:
     ]
     for row_id, score_value, text in fit.low.nearest_positives:
         lines.append(f"| `{row_id}` | {score_value:.4f} | {text} |")
+
+    if fit.low.adversarial is not None:
+        a = fit.low.adversarial
+        decided = "decided `low`" if a.binding else "did not bind; the labelled rows scored lower"
+        lines += [
+            "",
+            "### A product rule constrains `low` too",
+            "",
+            f"**{a.label}**",
+            "",
+            f"{a.n} notes written to evade the skip band were scored by the shipped model, "
+            f"and the lowest of them {decided}. `{a.set_by}` scored **{a.lowest:.4f}**:",
+            "",
+            f"> {a.set_by_text}",
+            "",
+            "**What this costs.** `make redteam` now passes *by construction*, the same way "
+            "the release-gate constraint makes its own check pass by construction. These "
+            "notes have stopped being evidence about this artifact and become a guarantee "
+            "about it. Only attack notes written after this fit can test the skip band "
+            "again — and writing them is the first thing to do before the next artifact.",
+            "",
+            "Notes the scope rule sends to the LLM regardless of score are excluded here: "
+            "they cannot constrain a route they never take.",
+        ]
+
+    if fit.scope is not None and fit.scope.escalate_non_latin_letters:
+        lines += [
+            "",
+            "### Notes the model declines to judge",
+            "",
+            "A note containing letters from a non-Latin script escalates whatever it "
+            'scores. `all-MiniLM-L6-v2` is an English model: *もう生きていたくない* — "I '
+            "don't want to live any more\" — scores low because the model cannot read it, "
+            "not because the note is calm, and a low score from a model that cannot read "
+            "the input is the one thing the skip band must never act on. Only letters are "
+            "examined, so emoji, curly quotes and accented Latin text stay in scope.",
+        ]
 
     if fit.constraint is not None:
         c = fit.constraint
@@ -520,6 +573,7 @@ def artifact_metadata(summary: TrainingSummary, provenance: dict[str, Any]) -> d
         },
         "thresholds": thresholds_metadata(summary.cascade),
         "segmentation": segmentation_metadata(summary.cascade),
+        "scope": scope_metadata(summary.cascade),
         "selection": {
             "rule": summary.selection.rule,
             "cv_pr_auc_mean": chosen.mean,
@@ -548,6 +602,17 @@ def segmentation_metadata(fit: CascadeFit) -> dict[str, Any] | None:
         "boundary": fit.segmentation.boundary,
         "applies_to": "skip-llm",
         "aggregate": "max",
+    }
+
+
+def scope_metadata(fit: CascadeFit) -> dict[str, Any] | None:
+    """Which notes the model declines to judge, carried so the service cannot differ."""
+    if fit.scope is None:
+        return None
+    return {
+        "escalate_non_latin_letters": fit.scope.escalate_non_latin_letters,
+        "reason": "all-MiniLM-L6-v2 is English-only; a low score on text it cannot read "
+        "is not evidence the note is calm",
     }
 
 

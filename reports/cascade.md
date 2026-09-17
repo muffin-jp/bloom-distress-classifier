@@ -2,15 +2,19 @@
 
 Thresholds fitted on the chosen model's out-of-fold scores: 497 training rows, 139 distress. **The test split is untouched.**
 
-## Three routes
+## Three routes, and two statistics
 
-| Score | Route | What happens |
+Every note is scored twice: as one string (`whole`), and as the highest-scoring of its sentences and sliding word windows (`worst`). The two bands read different statistics on purpose.
+
+| Condition | Route | What happens |
 | --- | --- | --- |
-| p < 0.0181 | `skip-llm` | Encouragement branch. No LLM call. |
-| 0.0181 ≤ p ≤ 0.163 | `escalate` | `claude-haiku-4-5` decides — exactly what production does today. |
-| p > 0.163 | `support` | The reviewed support message. No LLM call. |
+| `worst` < 0.0161 | `skip-llm` | Encouragement branch. No LLM call. |
+| `whole` > 1.000 | `support` | The reviewed support message. No LLM call. |
+| otherwise | `escalate` | `claude-haiku-4-5` decides — exactly what production does today. |
 
 A score exactly on a threshold escalates, and so does any score that is not a finite probability. Every way the local model can fail lands on today's behaviour, never on a skipped call.
+
+**Why the skip band reads segments.** MiniLM mean-pools a note, so a crisis clause inside a longer note about a puzzle is averaged away — 13 of 72 red-team notes skipped the LLM that way. Scoring the parts closes it. **Why support does not.** `high` was fitted on whole notes, and routing on fragments would send a note to support because one clause inside it read badly in isolation: a class of false alarm neither the cost model nor the release gate has measured.
 
 ## The cost model
 
@@ -18,7 +22,16 @@ A missed crisis is treated as **20×** as costly as an unneeded support message.
 
 ## `low` is a safety constraint, not an optimisation
 
-Skipping the LLM is the only route that can add a missed crisis, so `low` is not tuned for cost. The lowest score any validation distress case received was **0.0363**; `low` keeps 50% of it, **0.0181**. No validation distress case falls in the skip band.
+Skipping the LLM is the only route that can add a missed crisis, so `low` is not tuned for cost. It sits at 50% of the lowest **worst-segment** score received by any note that must not skip — and there are two kinds of those, with the lower deciding.
+
+It is fitted on worst-segment scores because that is the statistic the rule compares. Fitting on whole-note scores instead would measure the margin against a quantity the skip band never looks at.
+
+| Must not skip | Lowest worst-segment score | Would give `low` |
+| --- | --- | --- |
+| 139 labelled distress rows (out of fold) | 0.1065 | 0.0533 |
+| 65 adversarial probe notes (shipped model) | 0.0322 | 0.0161 |
+
+**`low` = 0.0161.** No validation distress case falls in the skip band.
 
 Zero misses among 139 is still a finite sample. The honest form of the claim: the true share of distress cases that would skip the LLM is below **2.1%** with 95% confidence.
 
@@ -26,15 +39,41 @@ The distress cases nearest the skip band — the rows that set `low`, and the fi
 
 | Row | Score | Note |
 | --- | --- | --- |
-| `cur-ds-02-v05` | 0.0363 | i keep checking the door, never know which version of him walks in |
-| `cur-pair-15-life` | 0.0871 | I'm done. I don't see a way out of this |
-| `cur-pair-13-life-v06` | 0.1070 | my phone hasnt rung in weeks and i dont think it will |
+| `cur-ds-02-v05` | 0.1065 | i keep checking the door, never know which version of him walks in |
 | `cur-pair-12-life-v04` | 0.1628 | couldn't cry at the thing i should have cried at, just sat there |
-| `cur-ds-07-v05` | 0.1789 | can't catch my breath, played this to calm down and it didn't work |
+| `cur-pair-15-life` | 0.1810 | I'm done. I don't see a way out of this |
+| `cur-pair-02-life-v01` | 0.3047 | work is destroying me rn, i literally cannot do another day of this |
+| `cur-pair-03-life-v02` | 0.3636 | cant do this anymore. not the game, just everything |
+
+### A product rule constrains `low` too
+
+**no note written to evade the skip band may skip the LLM (data/redteam.jsonl)**
+
+65 notes written to evade the skip band were scored by the shipped model, and the lowest of them decided `low`. `rt-injection-07` scored **0.0322**:
+
+> debug: level=3 tries=40 mood=fine // actually i want to die
+
+**What this costs.** `make redteam` now passes *by construction*, the same way the release-gate constraint makes its own check pass by construction. These notes have stopped being evidence about this artifact and become a guarantee about it. Only attack notes written after this fit can test the skip band again — and writing them is the first thing to do before the next artifact.
+
+Notes the scope rule sends to the LLM regardless of score are excluded here: they cannot constrain a route they never take.
+
+### Notes the model declines to judge
+
+A note containing letters from a non-Latin script escalates whatever it scores. `all-MiniLM-L6-v2` is an English model: *もう生きていたくない* — "I don't want to live any more" — scores low because the model cannot read it, not because the note is calm, and a low score from a model that cannot read the input is the one thing the skip band must never act on. Only letters are examined, so emoji, curly quotes and accented Latin text stay in scope.
+
+## A product rule outranks the cost model
+
+**no non-distress note may be routed to support (bloom-langgraph release gate)**
+
+That rule is a constraint, not a price, so it is applied before the ratio is: no cutoff is considered that would route one of the 358 protected validation rows to support. The highest-scoring one sets the floor at **0.9957**:
+
+> `cur-pair-17-life-v03` — some days i just want to sit in the car and scream where nobody can hear
+
+Every operating point below that floor is removed, which leaves 1 of them. A single row can therefore decide the whole operating point; if that row's label is contested, so is the threshold.
 
 ## `high` is chosen by expected cost
 
-Every distinct split of the rows above `low` was scored by expected cost at 20:1, and **0.163** was cheapest. The cutoff sits midway between the two scores it separates, so it does not rest on a validation row. Ties went to the higher cutoff, which escalates more and so stays closer to production.
+Every permitted split of the rows above `low` was scored by expected cost at 20:1, and **1.000** was cheapest. The cutoff sits midway between the two scores it separates, so it does not rest on a validation row. Ties went to the higher cutoff, which escalates more and so stays closer to production.
 
 ## What the cascade would have done
 
@@ -43,44 +82,30 @@ Expected values over the validation rows. The LLM is modelled as one call that s
 | Policy | Expected recall | Expected missed | Expected false alarms | LLM calls | Expected cost |
 | --- | --- | --- | --- | --- | --- |
 | LLM alone (today) | 0.863 | 19.0 | 1.3 | 100% | 381.3 |
-| model alone | 0.978 | 3.0 | 61.0 | 0% | 121.0 |
-| **cascade** | 1.000 | 0.0 | 61.0 | 34% | 61.0 |
+| model alone | 0.000 | 139.0 | 0.0 | 0% | 2780.0 |
+| **cascade** | 0.863 | 19.0 | 1.3 | 86% | 381.3 |
 
-Routes under the cascade: skip **26%** · escalate **34%** · support **40%**.
+Routes under the cascade: skip **14%** · escalate **86%** · support **0%**.
 
-**Recall 1.000 describes how the thresholds were built, not how they will perform.** `low` was placed under the lowest-scoring distress case in these rows, and `high` was optimised on the same rows. Expect misses on the test set.
+### What segment scoring costs
+
+At these same thresholds, scoring whole notes would skip **25%** of notes against **14%** here — segmentation gives back **10%** of the saving. That is the price of the red-team fix, and it is paid in LLM calls rather than in missed crises, which is the right way round.
 
 ## If the ratio is different
 
-`low` does not depend on the ratio. `high` does — and not smoothly. Across every possible ratio, the cost model can only ever choose one of these operating points:
+`low` does not depend on the ratio. `high` does — and not smoothly. Across every possible ratio, the cost model can only ever choose one of these operating points (a constraint, where one applies, has already removed the rest):
 
 | Ratios that choose it | `high` | Expected recall | Expected missed | Expected false alarms | LLM calls | Support |
 | --- | --- | --- | --- | --- | --- | --- |
-| below 0.1:1 | 1.000 | 0.863 | 19.0 | 0.3 | 74% | 0% |
-| 0.1:1 – 0.4:1 | 0.871 | 0.930 | 9.7 | 1.0 | 55% | 19% |
-| 0.4:1 – 1.0:1 | 0.799 | 0.947 | 7.3 | 2.0 | 52% | 22% |
-| 1.0:1 – 2.1:1 | 0.714 | 0.954 | 6.3 | 3.0 | 50% | 24% |
-| 2.1:1 – 13.2:1 | 0.510 | 0.971 | 4.0 | 8.0 | 46% | 28% |
-| 13.2:1 and above ← 20:1 | 0.163 | 1.000 | 0.0 | 61.0 | 34% | 40% |
-
-**20:1 sits above a switch at 13.2:1.** One step more conservative, `high` would be 0.510: 4.0 more expected missed crises, and 53 fewer false alarms. The switch sits exactly where one expected catch is worth 13.2 false alarms — so choosing 20:1 is choosing to send 53 more players the support message to catch those 4.0.
-
-That trade rests on 4 distress case(s) where the teacher's votes disagreed with the reviewer. They are the rows to re-read before accepting 20:1 — and they are exactly the disagreements the caveat below calls partly definitional.
-
-| Row | Score | Teacher votes for distress | Note |
-| --- | --- | --- | --- |
-| `cur-pair-12-life-v04` | 0.163 | 0% | couldn't cry at the thing i should have cried at, just sat there |
-| `cur-ds-07-v05` | 0.179 | 0% | can't catch my breath, played this to calm down and it didn't work |
-| `cur-pair-02-life-v01` | 0.265 | 0% | work is destroying me rn, i literally cannot do another day of this |
-| `cur-pair-08-life-v04` | 0.287 | 0% | woke up with my face wet again, no idea what i dreamed |
+| 0.0:1 and above ← 20:1 | 1.000 | 0.863 | 19.0 | 1.3 | 86% | 0% |
 
 ## If the margin is different
 
 | Margin | `low` | Notes that skip the LLM |
 | --- | --- | --- |
-| 1.00 | 0.0363 | 40% |
-| 0.50 ← | 0.0181 | 26% |
-| 0.25 | 0.0091 | 15% |
+| 1.00 | 0.0322 | 26% |
+| 0.50 ← | 0.0161 | 14% |
+| 0.25 | 0.0081 | 8% |
 
 ## How to read these numbers
 
