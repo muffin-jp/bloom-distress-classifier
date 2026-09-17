@@ -5,7 +5,11 @@ to machine, and the training report must reproduce byte for byte. This writes a
 snapshot to ``reports/latency.md`` instead.
 
 The local path is measured the way a request would pay for it — one note at a
-time, sequentially, after warm-up: embed, score, route. The LLM path makes real
+time, sequentially, after warm-up, through ``dc.serve`` and the artifact's own
+segmentation and scope rules, so what is timed is what ships. A note is not one
+embedding: it is the note plus each of its sentences and sliding word windows, in
+one batched call. The whole-note path is timed alongside it, because the
+difference between the two is what the red-team fix costs. The LLM path makes real
 ``claude-haiku-4-5`` calls with production's exact prompt and schema, so it costs
 money and needs ``--yes``. It is timed from this machine, which is not where
 production runs; read it as indicative.
@@ -28,9 +32,10 @@ from typing import Any
 
 import numpy as np
 
-from dc.artifact import is_servable, load
+from dc.artifact import is_servable, load, read_scope, read_segmentation
 from dc.cascade import Thresholds, route
 from dc.features import build_features, load_embedder
+from dc.serve import score_notes
 from dc.splits import load_all_rows, load_assignment, split_rows
 
 REPORT = Path(__file__).resolve().parents[1] / "reports" / "latency.md"
@@ -48,20 +53,7 @@ def percentiles(samples_ms: list[float]) -> dict[str, float]:
     }
 
 
-def bench_local(texts: list[str], warmup: int) -> dict[str, float]:
-    artifact = load()
-    if not is_servable(artifact.metadata):
-        raise SystemExit("The artifact has no thresholds. Run `make train` first.")
-    bands = artifact.metadata["thresholds"]
-    thresholds = Thresholds(float(bands["low"]), float(bands["high"]))
-    embedder = load_embedder()
-    rows = [row for row in split_rows(load_all_rows(), load_assignment(), "train")]
-    by_text = {row.free_text: row for row in rows}
-
-    def one(text: str) -> None:
-        features = build_features([by_text[text]], embedder, include_feeling=False)
-        route(float(artifact.model.predict_proba_features(features)[0]), thresholds)
-
+def _time(one: Any, texts: list[str], warmup: int) -> dict[str, float]:
     for text in texts[:warmup]:
         one(text)
     samples: list[float] = []
@@ -70,6 +62,34 @@ def bench_local(texts: list[str], warmup: int) -> dict[str, float]:
         one(text)
         samples.append((time.perf_counter() - start) * 1000)
     return percentiles(samples)
+
+
+def bench_local(texts: list[str], warmup: int) -> tuple[dict[str, float], dict[str, float], float]:
+    """The shipped path, the whole-note path it replaced, and segments per note."""
+    artifact = load()
+    if not is_servable(artifact.metadata):
+        raise SystemExit("The artifact has no thresholds. Run `make train` first.")
+    bands = artifact.metadata["thresholds"]
+    thresholds = Thresholds(float(bands["low"]), float(bands["high"]))
+    segmentation = read_segmentation(artifact.metadata)
+    scope = read_scope(artifact.metadata)
+    embedder = load_embedder()
+    by_text = {
+        row.free_text: row for row in split_rows(load_all_rows(), load_assignment(), "train")
+    }
+
+    def shipped(text: str) -> None:
+        [note] = score_notes(
+            [text], artifact.model, embedder, segmentation=segmentation, scope=scope
+        )
+        note.route(thresholds)
+
+    def whole_note(text: str) -> None:
+        features = build_features([by_text[text]], embedder, include_feeling=False)
+        route(float(artifact.model.predict_proba_features(features)[0]), thresholds)
+
+    segments = float(np.mean([len(segmentation.split(text)) for text in texts]))
+    return _time(shipped, texts, warmup), _time(whole_note, texts, warmup), segments
 
 
 def bench_llm(texts: list[str], feelings: list[str]) -> dict[str, float]:
@@ -99,7 +119,13 @@ def bench_llm(texts: list[str], feelings: list[str]) -> dict[str, float]:
     return percentiles(samples)
 
 
-def render(local: dict[str, float], llm: dict[str, float] | None, escalate: float | None) -> str:
+def render(
+    local: dict[str, float],
+    whole: dict[str, float],
+    segments: float,
+    llm: dict[str, float] | None,
+    escalate: float | None,
+) -> str:
     def row(name: str, stats: dict[str, float]) -> str:
         return (
             f"| {name} | {stats['p50']:.1f} ms | {stats['p95']:.1f} ms "
@@ -114,7 +140,8 @@ def render(local: dict[str, float], llm: dict[str, float] | None, escalate: floa
         "",
         "| Path | p50 | p95 | Mean | Max | Notes |",
         "| --- | --- | --- | --- | --- | --- |",
-        row("Local model — embed, score, route", local),
+        row("**Local model, as shipped** — split, embed all segments, score, route", local),
+        row("Local model, whole note only — the rule this replaced", whole),
     ]
     if llm is None:
         lines.append(
@@ -124,6 +151,11 @@ def render(local: dict[str, float], llm: dict[str, float] | None, escalate: floa
     else:
         lines.append(row("`claude-haiku-4-5` — production call", llm))
     lines += [
+        "",
+        f"A note becomes **{segments:.1f} texts** on average — itself, its sentences, and "
+        f"sliding word windows — embedded in one batched call. That costs "
+        f"**{local['p50'] - whole['p50']:+.1f} ms** at p50 against scoring the note alone, "
+        "which is what the red-team fix is worth paying.",
         "",
         "The local path runs in-process on CPU. The LLM path includes the network "
         "round-trip from this machine, which is not where production runs.",
@@ -153,8 +185,10 @@ def main() -> None:
     texts = [row.free_text for row in sample]
 
     print(f"Timing the local path over {len(texts)} note(s) ...")
-    local = bench_local(texts, args.warmup)
-    print(f"  p50 {local['p50']:.1f} ms · p95 {local['p95']:.1f} ms")
+    local, whole, segments = bench_local(texts, args.warmup)
+    print(f"  shipped (segmented) p50 {local['p50']:.1f} ms · p95 {local['p95']:.1f} ms")
+    print(f"  whole note only     p50 {whole['p50']:.1f} ms · p95 {whole['p95']:.1f} ms")
+    print(f"  segments per note   {segments:.1f}")
 
     llm: dict[str, float] | None = None
     if args.llm_calls > 0:
@@ -168,7 +202,7 @@ def main() -> None:
 
     metadata: dict[str, Any] = load().metadata
     escalate = metadata["thresholds"]["validation"]["escalate_share"]
-    REPORT.write_text(render(local, llm, float(escalate)), encoding="utf-8")
+    REPORT.write_text(render(local, whole, segments, llm, float(escalate)), encoding="utf-8")
     print(f"Wrote {REPORT.relative_to(REPORT.parents[1])}.")
 
 
