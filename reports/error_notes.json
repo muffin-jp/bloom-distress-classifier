@@ -1,120 +1,52 @@
 {
   "summary": [
-    "No test distress case was missed, and none reached the skip band. Every error on test is a note that is not distress, routed straight to the support message: 27 of the 139 non-distress rows.",
-    "**Most of them do not look like distress.** For 22 of the 27, most of the five nearest training notes — in the embedding space the model reads — are not distress. They reached support because their score cleared a cutoff set deliberately low: `high` is 0.163, where the 20:1 cost model placed it. These errors are the cost side of that decision.",
-    "**Five do look like distress.** Four are game notes written in first-person, ongoing-state language — *\"i keep starting over and honestly i just don't have it in me tonight\"*, *\"i'm out of energy for it\"* — whose nearest training notes are distress from other modes. The model has learned how a note is said more than what it is about.",
-    "**What the model responds to.** A word-level surrogate fitted to its scores (R² 0.68 — an approximation) moves scores down on game words — *level, stage, tries* — and up on first-person, ongoing-state words — *nothing, lately, been, keep, anymore*. A note with neither, like a shopping list or someone testing the box, has nothing pulling its score down.",
-    "**This analysis corrects its first version.** That version attributed seven errors to matched pairs whose life frame was trained and whose game frame was held out, and called one injection a successful attack. The nearest-neighbour explanations supported neither: only 4 of those seven rows' 35 nearest training notes came from their own pair, and nothing implicates the injection payload's words.",
-    "None of these errors cost recall. On the 147 test rows with votes the teacher missed no distress case either, so on this test set the support band's cost appeared and its benefit did not. What the errors ask for is data rather than a threshold: game notes written in first-person, ongoing-state language, and ordinary off-topic sentences. Acting on either means a new artifact and a second, recorded look."
+    "**No test distress case was missed, and none reached the skip band.** 0 of 52 distress rows skipped the LLM, and the lowest worst-segment score among them was well clear of `low`. The skip band was fitted so that no *probe* note could skip; that it also holds for 52 held-out distress rows it never saw is the part this look actually tested.",
+    "**No note reached support, which is what the closed band means.** The previous artifact sent 27 of 139 non-distress rows straight to the support message, and diverted 8 of `bloom-langgraph`'s encouragement cases. This one sends none, because `high` is 1.000. That failure mode is gone by construction rather than by improvement.",
+    "**The cost is the golden guarantee.** The previous artifact routed all 10 golden distress cases to support *without the LLM* — a gate that held whatever Haiku said. All 10 now escalate instead, scoring 0.904 to 1.000. They are ranked correctly and would clear any cutoff below 0.9; the constraint simply forbids one. So their recall is no longer guaranteed here — it depends on a call this evaluation does not make.",
+    "**What the cascade is now.** On the 147 rows with votes it matches the LLM alone exactly: recall 1.000 against 1.000, 2.3 expected false alarms against 2.3. It differs in one respect only — it makes 86% as many LLM calls. This is a cost-reduction component whose safety obligation is to change nothing else, and on this test set it changed nothing else.",
+    "**What this look cannot tell you.** 52 distress rows put a 95% lower bound of 0.931 on skip-band safety, not a guarantee; the golden rows have no recorded votes, so the gate is reported as bounds; and the probe notes that set `low` are excluded from being evidence about it by the same fit that used them.",
+    "**This analysis replaces the one written for the superseded artifact.** That version diagnosed 27 false alarms from the support band, and before that attributed seven errors to matched pairs split across train and test and called one injection successful — a claim the nearest-neighbour explanations did not support, corrected at the time. None of those errors exist under this artifact; the diagnoses are kept in the ledger's history, not here, because they describe routes it no longer takes."
   ],
   "errors": {
-    "cur-pair-06-game-v04": {
-      "cause": "Resembles distress — first-person, ongoing-state language about the game",
-      "note": "The highest score of any error, and genuinely ambiguous without the game context: only \"starting over\" hints at a game. Its nearest notes are distress from other modes, not its own pair. 100% of its nearest training notes are distress; surrogate words: \"i\", \"keep\", \"don't\"."
+    "ds-1": {
+      "cause": "Escalated, not routed: the release-gate constraint closed the support band",
+      "note": "Scores 0.915 — ranked as distress, and would reach support under any cutoff below 0.9. It escalates because `high` is 1.000, so whether it is caught depends on claude-haiku-4-5, which this evaluation does not call."
     },
-    "cur-pair-06-game-v02": {
-      "cause": "Resembles distress — first-person, ongoing-state language about the game",
-      "note": "\"i'm out of energy for it\" — exhaustion said about attempts at a level. 80% of its nearest training notes are distress; surrogate words: \"i'm\", \"out of\", \"of\"."
+    "ds-2": {
+      "cause": "Escalated, not routed: the release-gate constraint closed the support band",
+      "note": "Scores 0.982 — ranked as distress, and would reach support under any cutoff below 0.9. It escalates because `high` is 1.000, so whether it is caught depends on claude-haiku-4-5, which this evaluation does not call."
     },
-    "cur-pair-13-game-v01": {
-      "cause": "Resembles distress — first-person, ongoing-state language about the game",
-      "note": "No one to play with, said in the first person. 80% of its nearest training notes are distress; surrogate words: \"myself\", \"just\", \"i\"."
+    "ds-3": {
+      "cause": "Escalated, not routed: the release-gate constraint closed the support band",
+      "note": "Scores 0.981 — ranked as distress, and would reach support under any cutoff below 0.9. It escalates because `high` is 1.000, so whether it is caught depends on claude-haiku-4-5, which this evaluation does not call."
     },
-    "cur-pair-13-game-v05": {
-      "cause": "Resembles distress — first-person, ongoing-state language about the game",
-      "note": "Wanting a co-player, said in the first person. 60% of its nearest training notes are distress; surrogate words: \"i\", \"all\", \"doing\"."
+    "ds-4": {
+      "cause": "Escalated, not routed: the release-gate constraint closed the support band",
+      "note": "Scores 0.904 — ranked as distress, and would reach support under any cutoff below 0.9. It escalates because `high` is 1.000, so whether it is caught depends on claude-haiku-4-5, which this evaluation does not call."
     },
-    "cur-nf-05-v06": {
-      "cause": "Resembles distress — no clear cause in its words",
-      "note": "Plainly positive; its words are function words and its neighbours are mixed. Not explained by either mechanism. 60% of its nearest training notes are distress; surrogate words: \"all\", \"to\", \"out\"."
+    "ds-5": {
+      "cause": "Escalated, not routed: the release-gate constraint closed the support band",
+      "note": "Scores 0.999 — ranked as distress, and would reach support under any cutoff below 0.9. It escalates because `high` is 1.000, so whether it is caught depends on claude-haiku-4-5, which this evaluation does not call."
     },
-    "non-2": {
-      "cause": "Resembles ordinary notes — nothing about the game to pull the score down",
-      "note": "A golden case: a question meant for another app. \"tomorrow\" appears in distress training notes. 40% of its nearest training notes are distress; surrogate words: \"in\", \"tomorrow\"."
+    "ds-6": {
+      "cause": "Escalated, not routed: the release-gate constraint closed the support band",
+      "note": "Scores 1.000 — ranked as distress, and would reach support under any cutoff below 0.9. It escalates because `high` is 1.000, so whether it is caught depends on claude-haiku-4-5, which this evaluation does not call."
     },
-    "cur-non-06-v05": {
-      "cause": "Resembles ordinary notes — nothing about the game to pull the score down",
-      "note": "An everyday observation with no game words. 40% of its nearest training notes are distress; surrogate words: \"right\", \"when\"."
+    "ds-7": {
+      "cause": "Escalated, not routed: the release-gate constraint closed the support band",
+      "note": "Scores 0.980 — ranked as distress, and would reach support under any cutoff below 0.9. It escalates because `high` is 1.000, so whether it is caught depends on claude-haiku-4-5, which this evaluation does not call."
     },
-    "cur-non-06-v04": {
-      "cause": "Resembles ordinary notes — nothing about the game to pull the score down",
-      "note": "An everyday anecdote with no game words. 20% of its nearest training notes are distress; surrogate words: \"just\", \"glass\", \"no\"."
+    "ds-8": {
+      "cause": "Escalated, not routed: the release-gate constraint closed the support band",
+      "note": "Scores 0.993 — ranked as distress, and would reach support under any cutoff below 0.9. It escalates because `high` is 1.000, so whether it is caught depends on claude-haiku-4-5, which this evaluation does not call."
     },
-    "cur-non-06-v02": {
-      "cause": "Resembles ordinary notes — nothing about the game to pull the score down",
-      "note": "A shopping list; nothing in it is about the game or the player. 20% of its nearest training notes are distress; surrogate words: \"to\", \"and\", \"phone\"."
+    "ds-9": {
+      "cause": "Escalated, not routed: the release-gate constraint closed the support band",
+      "note": "Scores 0.926 — ranked as distress, and would reach support under any cutoff below 0.9. It escalates because `high` is 1.000, so whether it is caught depends on claude-haiku-4-5, which this evaluation does not call."
     },
-    "cur-non-06-v01": {
-      "cause": "Resembles ordinary notes — nothing about the game to pull the score down",
-      "note": "An off-topic opinion. The death idiom is not among the words that move its score. 20% of its nearest training notes are distress; surrogate words: \"i\", \"and i\", \"does\"."
-    },
-    "cur-non-05-v03": {
-      "cause": "Resembles ordinary notes — nothing about the game to pull the score down",
-      "note": "Someone testing whether the field saves. 20% of its nearest training notes are distress; surrogate words: \"to\", \"if\"."
-    },
-    "cur-non-05-v05": {
-      "cause": "Resembles ordinary notes — nothing about the game to pull the score down",
-      "note": "Digits only; the surrogate has no words to attribute. 0% of its nearest training notes are distress; surrogate words: none it can see."
-    },
-    "cur-non-05-v04": {
-      "cause": "Resembles ordinary notes — nothing about the game to pull the score down",
-      "note": "Someone testing whether the box works. 0% of its nearest training notes are distress; surrogate words: \"does\", \"work\", \"hello\"."
-    },
-    "cur-inj-04-v06": {
-      "cause": "Resembles ordinary notes — nothing about the game to pull the score down",
-      "note": "A meta request with no game and no emotional content. 0% of its nearest training notes are distress; surrogate words: \"back\", \"and\", \"me\"."
-    },
-    "cur-inj-05-v03": {
-      "cause": "Resembles ordinary notes — nothing about the game to pull the score down",
-      "note": "An injection payload. Nothing implicates its words (\"severe\", \"notify_support\"), though the surrogate cannot see words that are rare in training, so it cannot rule them out either. 0% of its nearest training notes are distress; surrogate words: \"of\"."
-    },
-    "gf-7": {
-      "cause": "Resembles ordinary notes — personal or emotional words outweigh the game context",
-      "note": "\"I'm so done\" — the first person carries the score, not \"done\". 20% of its nearest training notes are distress; surrogate words: \"i'm\", \"i'm so\", \"and\"."
-    },
-    "cur-gf-11": {
-      "cause": "Resembles ordinary notes — personal or emotional words outweigh the game context",
-      "note": "Deleting the app; the first-person \"I'm\" carries the score. 0% of its nearest training notes are distress; surrogate words: \"i'm\", \"app\", \"then\"."
-    },
-    "gf-9": {
-      "cause": "Resembles ordinary notes — personal or emotional words outweigh the game context",
-      "note": "A cleared stage; the first person outweighs \"cleared\", not the anger words. 0% of its nearest training notes are distress; surrogate words: \"i\", \"like\", \"finally cleared\"."
-    },
-    "mix-2": {
-      "cause": "Resembles ordinary notes — personal or emotional words outweigh the game context",
-      "note": "A game ending; \"I\" carries the score more than \"sad\". 0% of its nearest training notes are distress; surrogate words: \"i\", \"of\", \"kind of\"."
-    },
-    "nff-relieved": {
-      "cause": "Resembles ordinary notes — personal or emotional words outweigh the game context",
-      "note": "A golden case; \"I\" and \"honestly\" carry the score, not \"never get past\". 0% of its nearest training notes are distress; surrogate words: \"i\", \"get\", \"honestly\"."
-    },
-    "cur-mf-02-v02": {
-      "cause": "Resembles ordinary notes — personal or emotional words outweigh the game context",
-      "note": "\"feel\" and \"just\" in a note about a finished game. 0% of its nearest training notes are distress; surrogate words: \"feel\", \"just\", \"i\"."
-    },
-    "cur-pair-12-game-v04": {
-      "cause": "Resembles ordinary notes — personal or emotional words outweigh the game context",
-      "note": "\"keep\" and \"anymore\" — ongoing-state words about a game. 20% of its nearest training notes are distress; surrogate words: \"keep\", \"anymore\", \"i\"."
-    },
-    "cur-pair-13-game-v02": {
-      "cause": "Resembles ordinary notes — personal or emotional words outweigh the game context",
-      "note": "\"been\" and \"days\" — duration words about a level. 0% of its nearest training notes are distress; surrogate words: \"been\", \"to\", \"days\"."
-    },
-    "cur-pair-13-game-v03": {
-      "cause": "Resembles ordinary notes — personal or emotional words outweigh the game context",
-      "note": "\"no one\" about having nobody to tell; just over the cutoff. 0% of its nearest training notes are distress; surrogate words: \"to\", \"about\", \"no one\"."
-    },
-    "mix-1": {
-      "cause": "Resembles ordinary notes — personal or emotional words outweigh the game context",
-      "note": "\"exhausted\" outweighs \"happy\". 40% of its nearest training notes are distress; surrogate words: \"exhausted\"."
-    },
-    "mix-6": {
-      "cause": "Resembles ordinary notes — personal or emotional words outweigh the game context",
-      "note": "Weak attributions; \"my\" is the largest. Just over the cutoff. 20% of its nearest training notes are distress; surrogate words: \"is\", \"over\", \"my\"."
-    },
-    "cur-nf-05-v05": {
-      "cause": "Resembles ordinary notes — personal or emotional words outweigh the game context",
-      "note": "Weak attributions; \"without\" is the largest. Positive in content. 0% of its nearest training notes are distress; surrogate words: \"without\", \"lives\", \"for\"."
+    "ds-10": {
+      "cause": "Escalated, not routed: the release-gate constraint closed the support band",
+      "note": "Scores 0.992 — ranked as distress, and would reach support under any cutoff below 0.9. It escalates because `high` is 1.000, so whether it is caught depends on claude-haiku-4-5, which this evaluation does not call."
     }
   }
 }

@@ -17,9 +17,9 @@ reviewed support message.
 | Input | `sentence-transformers/all-MiniLM-L6-v2` embedding of the note (384-d), revision `c9745ed1`, frozen |
 | Size | 385 weights, 3.6 KB. Served with numpy; nothing is unpickled |
 | Decision | Skip the LLM when every segment of the note scores below **0.0161**; go straight to support when the whole note scores above **1.000** — which never happens, so the support band is closed; the LLM decides everything else. A note in a non-Latin script always escalates |
-| Test set | **Not yet scored for this artifact.** Scored once, on 2026-09-14, and re-rendered 4 times from saved predictions — all of it measuring the superseded artifact `5709c6e15ed3…`. Every look and render is in `reports/test_ledger.json` |
+| Test set | Scored 2 times — look 2, on 2026-09-17, measures this artifact; look 1 measured the superseded `5709c6e15ed3…`. The report has been re-rendered 6 times from saved predictions. Every look and render is in `reports/test_ledger.json` |
 | Owner | U.V, muffin Inc. |
-| Status | **Not yet evaluated.** Both failures of the previous artifact are addressed by construction — the support band is closed, so it cannot fail the [release gate](#integration), and no [red-team](#known-failure-modes) note can skip. Neither claim has met a held-out row. Integrated into `bloom-langgraph` behind `CLASSIFIER_ENABLED`, off |
+| Status | **Evaluated; not yet cleared to ship.** On held-out rows no distress case skipped the LLM and nothing reached support, so both failures of the previous artifact are gone. What it now buys is 14% fewer LLM calls and nothing else — including no golden-case guarantee, which the previous artifact had. Integrated into `bloom-langgraph` behind `CLASSIFIER_ENABLED`, off |
 
 ## Intended use
 
@@ -61,13 +61,28 @@ Everything else escalates to the LLM, exactly as every note does today.
 
 ## Evaluation
 
-> **Every test number in this section describes the superseded artifact `5709c6e15ed3…`, not
-> the one at the top of this card.** That artifact routed on whole-note scores with `high` at
-> 0.163. The model weights are unchanged — the same rows, the same config, the same seed — so
-> the PR-AUC and calibration figures carry over; every number that depends on a **route** does
-> not. In particular that artifact's cascade produced **20.3** expected false alarms against
-> **2.3** for the LLM alone; this one's support band is closed, so it can produce none. The
-> second look has not been taken.
+The test set has now been looked at twice. Look 2 (2026-09-17) measures this artifact; look 1
+measured the superseded `5709c6e15ed3…`, whose weights were identical but which routed on
+whole-note scores with `high` at 0.163. What the second look found:
+
+| | Superseded artifact | This artifact |
+| --- | --- | --- |
+| Distress cases that skipped the LLM | 0 of 52 | **0 of 52** |
+| Non-distress notes routed to support | 27 of 139 | **0 of 139** |
+| Expected false alarms (147 voted rows) | 20.3 | **2.3** — identical to the LLM alone |
+| Cascade recall vs LLM alone | 1.000 vs 1.000 | **1.000 vs 1.000** |
+| Golden distress cases caught without the LLM | **10 of 10** | **0 of 10** — all escalate |
+| LLM calls | 32% | **86%** |
+
+**The skip band held out of sample.** `low` was fitted so that no *probe* note could skip. That
+it also holds for 52 held-out distress rows it never saw is the part this look actually tested,
+and it passed. 52 rows put a 95% lower bound of 0.931 on that, not a guarantee.
+
+**The closed support band cost the golden guarantee.** The previous artifact routed all 10
+golden distress cases straight to support, which held whatever the LLM said. All 10 now escalate
+— scoring 0.904 to 1.000, so they are ranked correctly and would clear any cutoff below 0.9. The
+release-gate constraint forbids one. Their recall is therefore no longer established here; it
+depends on a `claude-haiku-4-5` call this evaluation does not make.
 
 Model selection and both thresholds used grouped cross-validation on the training split only,
 by a selection rule fixed in code before any result existed. The test set was scored once.
@@ -180,9 +195,15 @@ complaint about a stage and about life lands at 0.039 and 0.999 respectively.
 
 ## Known failure modes
 
-1. **Ordinary notes cross the low support cutoff.** Of 27 test false alarms, 22 look like
-   non-distress training notes by their nearest neighbours; they cleared 0.163 without
-   resembling distress. *"proud I finished but kind of sad it's over"* — 0.168.
+Failure modes 1–3 are properties of how the model *scores*, not of how this artifact *routes*.
+With the support band closed, a high score on an ordinary note costs nothing today — it escalates
+to the LLM like everything else. They are kept here because they are the reason the support band
+could not be opened, and they would return the moment it was.
+
+1. **Ordinary notes score high enough to have crossed the old support cutoff.** Under the
+   superseded artifact, 22 of 27 false alarms did not resemble distress by their nearest
+   neighbours at all. *"proud I finished but kind of sad it's over"* — 0.168, against a cutoff
+   of 0.163.
 2. **Game notes in first-person, ongoing-state language read as distress.** *"i keep starting
    over and honestly i just don't have it in me tonight"* — 0.994, nearest training notes all
    distress. The model has learned how a note is said more than what it is about.
@@ -244,11 +265,25 @@ because nothing routes to support at all. The gate's failure mode changes shape 
 disappearing: the skip band can now break it the other way, by routing a golden *distress* case
 to encouragement. Nothing yet rules that out, and the eval has not been re-run.
 
-The flag stays off. Before it can go on, the current artifact needs a second, recorded look at
-the test set here — the routes above describe an artifact that no longer exists — and then that
-repo's gate re-run with the flag on. `bloom-langgraph` must also implement the segmentation and
-scope rules this artifact records, and be checked against this repo's routes; a copy that drifts
-would change production routing silently.
+**Two copies of one rule, and what keeps them together.** `bloom-langgraph` re-implements the
+splitting and scope rules in order to serve the model. Nothing about that is self-correcting: a
+regex tweak on either side changes production routing with no error and no obviously wrong
+score. Three guards, in order of what they are worth:
+
+1. **The artifact carries the parameters.** Its loader refuses an artifact whose `segmentation`
+   or `scope` block is not the one that service implements, so drift is a startup failure and
+   every note escalates — today's behaviour — rather than being routed by an unmeasured rule.
+2. **The routes are frozen as data.** `make export-routes` writes `artifacts/routes.json`: 91
+   cases — the adversarial probe plus edge cases for packed markup, window boundaries, accented
+   Latin, emoji and non-Latin scripts — with each one's scores and route. That repo's
+   `tests/test_classifier_parity.py` re-derives all 91 with its own code. Deleting the
+   zero-width markup alternative from the boundary pattern, the subtlest change available,
+   fails 12 of those tests and is refused by the loader.
+3. **No test-set row is exported**, so the fixture carries no release-gate answers.
+
+The flag stays off. What remains: re-run that repo's gate with the flag on, measure latency
+now that a note costs about ten embeddings instead of one, and decide whether 14% fewer LLM
+calls justifies the machinery.
 
 **Embedder revision.** This project built the artifact on MiniLM revision `c9745ed1`, and an
 earlier comment in the code claimed that matched production. It does not: `bloom-langgraph` pins

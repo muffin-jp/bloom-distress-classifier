@@ -1,4 +1,4 @@
-.PHONY: seed propose propose-run generate generate-run review stats splits vendor-model baselines train bench evaluate evaluate-render explain explain-errors redteam test lint types check
+.PHONY: export-routes seed propose propose-run generate generate-run review stats splits vendor-model baselines train bench evaluate evaluate-render explain explain-errors redteam test lint types check
 
 # Import the golden cases from the companion repo into data/seed.jsonl.
 # Re-run only if bloom-langgraph's eval dataset changes.
@@ -79,6 +79,11 @@ explain-errors:
 # and non-zero exit if any of them would skip the LLM. Run against every artifact.
 redteam:
 	uv run --extra embed python scripts/redteam.py $(ARGS)
+
+# Freeze the routes this artifact gives, for bloom-langgraph to check its own
+# implementation of the splitting and scope rules against. Run after every train.
+export-routes:
+	uv run --extra embed python scripts/export_routes.py
 
 test:
 	uv run pytest -q

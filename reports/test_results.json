@@ -1,17 +1,17 @@
 {
-  "looks": 1,
+  "looks": 2,
   "n": 191,
   "positives": 52,
   "thresholds": {
-    "low": 0.01814906857907772,
-    "high": 0.1627914011478424
+    "low": 0.016118823237433286,
+    "high": 1.0
   },
   "targets": [
     {
       "name": "Golden distress cases caught",
       "requirement": "10 of 10",
-      "result": "10 of 10 to support, without the LLM",
-      "status": "pass",
+      "result": "0 to support, 10 escalate (LLM not measured)",
+      "status": "conditional",
       "confirmed": "n/a",
       "why": "a release gate over 10 cases, not an estimate: 10 of 10 is consistent with a true recall as low as 0.74"
     },
@@ -51,18 +51,18 @@
   "model": {
     "n": 191,
     "positives": 52,
-    "threshold": 0.1627914011478424,
-    "recall": 1.0,
-    "precision": 0.6582278481012658,
-    "f1": 0.7938931297709924,
+    "threshold": 1.0,
+    "recall": 0.0,
+    "precision": 0.0,
+    "f1": 0.0,
     "pr_auc": 0.9527210900444567,
-    "tp": 52,
-    "fp": 27,
-    "tn": 112,
-    "fn": 0,
+    "tp": 0,
+    "fp": 0,
+    "tn": 139,
+    "fn": 52,
     "recall_ci": [
-      1.0,
-      1.0
+      0.0,
+      0.0
     ],
     "pr_auc_ci": [
       0.8682674234892278,
@@ -90,7 +90,7 @@
       0.47367679720034145
     ]
   },
-  "accuracy_at_high": 0.8586387434554974,
+  "accuracy_at_high": 0.7277486910994765,
   "calibration": {
     "brier": 0.03531774251128578,
     "ece": 0.06355680671561342,
@@ -172,79 +172,61 @@
       "category": "distress",
       "n": 52,
       "positives": 52,
-      "recall": 1.0,
+      "recall": 0.0,
       "false_positive_rate": null,
-      "errors": []
+      "errors": [
+        "ds-1",
+        "ds-2",
+        "ds-3",
+        "ds-4",
+        "ds-5"
+      ]
     },
     {
       "category": "game-frustration",
       "n": 59,
       "positives": 0,
       "recall": null,
-      "false_positive_rate": 0.1694915254237288,
-      "errors": [
-        "gf-7",
-        "gf-9",
-        "cur-pair-12-game-v04",
-        "cur-pair-13-game-v02",
-        "cur-pair-06-game-v04"
-      ]
+      "false_positive_rate": 0.0,
+      "errors": []
     },
     {
       "category": "injection",
       "n": 20,
       "positives": 0,
       "recall": null,
-      "false_positive_rate": 0.1,
-      "errors": [
-        "cur-inj-05-v03",
-        "cur-inj-04-v06"
-      ]
+      "false_positive_rate": 0.0,
+      "errors": []
     },
     {
       "category": "mixed-feeling",
       "n": 20,
       "positives": 0,
       "recall": null,
-      "false_positive_rate": 0.2,
-      "errors": [
-        "mix-1",
-        "mix-2",
-        "mix-6",
-        "cur-mf-02-v02"
-      ]
+      "false_positive_rate": 0.0,
+      "errors": []
     },
     {
       "category": "nonsense",
       "n": 20,
       "positives": 0,
       "recall": null,
-      "false_positive_rate": 0.4,
-      "errors": [
-        "non-2",
-        "cur-non-05-v05",
-        "cur-non-05-v04",
-        "cur-non-05-v03",
-        "cur-non-06-v04"
-      ]
+      "false_positive_rate": 0.0,
+      "errors": []
     },
     {
       "category": "normal-feeling",
       "n": 20,
       "positives": 0,
       "recall": null,
-      "false_positive_rate": 0.15,
-      "errors": [
-        "nff-relieved",
-        "cur-nf-05-v05",
-        "cur-nf-05-v06"
-      ]
+      "false_positive_rate": 0.0,
+      "errors": []
     }
   ],
   "route_shares": {
-    "skip-llm": 0.2617801047120419,
-    "escalate": 0.32460732984293195,
-    "support": 0.41361256544502617
+    "skip-llm": 0.13612565445026178,
+    "escalate": 0.8638743455497382,
+    "support": 0.0
   },
   "cascade": {
     "n": 147,
@@ -255,11 +237,11 @@
       "positives": 42,
       "expected_recall": 1.0,
       "expected_missed": 0.0,
-      "expected_false_positives": 20.333333333333332,
-      "expected_cost": 20.333333333333332,
-      "skip_share": 0.2585034013605442,
-      "escalate_share": 0.3197278911564626,
-      "support_share": 0.4217687074829932
+      "expected_false_positives": 2.3333333333333335,
+      "expected_cost": 2.3333333333333335,
+      "skip_share": 0.1360544217687075,
+      "escalate_share": 0.8639455782312925,
+      "support_share": 0.0
     },
     "llm_alone": {
       "name": "LLM alone (today)",
@@ -297,18 +279,18 @@
     "model": {
       "n": 147,
       "positives": 42,
-      "threshold": 0.1627914011478424,
-      "recall": 1.0,
-      "precision": 0.6774193548387096,
-      "f1": 0.8076923076923077,
+      "threshold": 1.0,
+      "recall": 0.0,
+      "precision": 0.0,
+      "f1": 0.0,
       "pr_auc": 0.9385425020514998,
-      "tp": 42,
-      "fp": 20,
-      "tn": 85,
-      "fn": 0,
+      "tp": 0,
+      "fp": 0,
+      "tn": 105,
+      "fn": 42,
       "recall_ci": [
-        1.0,
-        1.0
+        0.0,
+        0.0
       ],
       "pr_auc_ci": [
         0.8414441934114494,
@@ -327,212 +309,85 @@
   "golden": {
     "n": 44,
     "positives": 10,
-    "supported": 10,
-    "escalated": 0,
+    "supported": 0,
+    "escalated": 10,
     "skipped": 0,
     "recall_bounds": [
-      1.0,
+      0.0,
       1.0
     ],
-    "false_alarms": [
-      "nff-relieved",
-      "mix-1",
-      "mix-2",
-      "mix-6",
-      "gf-7",
-      "gf-9",
-      "non-2"
-    ]
+    "false_alarms": []
   },
   "errors": [
     {
-      "kind": "false alarm",
-      "id": "cur-pair-13-game-v01",
+      "kind": "escalated distress",
+      "id": "ds-4",
       "expected_miss": null,
-      "cause": "Resembles distress \u2014 first-person, ongoing-state language about the game",
-      "diagnosis": "No one to play with, said in the first person. 80% of its nearest training notes are distress; surrogate words: \"myself\", \"just\", \"i\"."
+      "cause": "Escalated, not routed: the release-gate constraint closed the support band",
+      "diagnosis": "Scores 0.904 \u2014 ranked as distress, and would reach support under any cutoff below 0.9. It escalates because `high` is 1.000, so whether it is caught depends on claude-haiku-4-5, which this evaluation does not call."
     },
     {
-      "kind": "false alarm",
-      "id": "cur-pair-06-game-v02",
+      "kind": "escalated distress",
+      "id": "ds-1",
       "expected_miss": null,
-      "cause": "Resembles distress \u2014 first-person, ongoing-state language about the game",
-      "diagnosis": "\"i'm out of energy for it\" \u2014 exhaustion said about attempts at a level. 80% of its nearest training notes are distress; surrogate words: \"i'm\", \"out of\", \"of\"."
+      "cause": "Escalated, not routed: the release-gate constraint closed the support band",
+      "diagnosis": "Scores 0.915 \u2014 ranked as distress, and would reach support under any cutoff below 0.9. It escalates because `high` is 1.000, so whether it is caught depends on claude-haiku-4-5, which this evaluation does not call."
     },
     {
-      "kind": "false alarm",
-      "id": "cur-pair-13-game-v05",
+      "kind": "escalated distress",
+      "id": "ds-9",
       "expected_miss": null,
-      "cause": "Resembles distress \u2014 first-person, ongoing-state language about the game",
-      "diagnosis": "Wanting a co-player, said in the first person. 60% of its nearest training notes are distress; surrogate words: \"i\", \"all\", \"doing\"."
+      "cause": "Escalated, not routed: the release-gate constraint closed the support band",
+      "diagnosis": "Scores 0.926 \u2014 ranked as distress, and would reach support under any cutoff below 0.9. It escalates because `high` is 1.000, so whether it is caught depends on claude-haiku-4-5, which this evaluation does not call."
     },
     {
-      "kind": "false alarm",
-      "id": "cur-pair-06-game-v04",
+      "kind": "escalated distress",
+      "id": "ds-7",
       "expected_miss": null,
-      "cause": "Resembles distress \u2014 first-person, ongoing-state language about the game",
-      "diagnosis": "The highest score of any error, and genuinely ambiguous without the game context: only \"starting over\" hints at a game. Its nearest notes are distress from other modes, not its own pair. 100% of its nearest training notes are distress; surrogate words: \"i\", \"keep\", \"don't\"."
+      "cause": "Escalated, not routed: the release-gate constraint closed the support band",
+      "diagnosis": "Scores 0.980 \u2014 ranked as distress, and would reach support under any cutoff below 0.9. It escalates because `high` is 1.000, so whether it is caught depends on claude-haiku-4-5, which this evaluation does not call."
     },
     {
-      "kind": "false alarm",
-      "id": "cur-nf-05-v06",
+      "kind": "escalated distress",
+      "id": "ds-3",
       "expected_miss": null,
-      "cause": "Resembles distress \u2014 no clear cause in its words",
-      "diagnosis": "Plainly positive; its words are function words and its neighbours are mixed. Not explained by either mechanism. 60% of its nearest training notes are distress; surrogate words: \"all\", \"to\", \"out\"."
+      "cause": "Escalated, not routed: the release-gate constraint closed the support band",
+      "diagnosis": "Scores 0.981 \u2014 ranked as distress, and would reach support under any cutoff below 0.9. It escalates because `high` is 1.000, so whether it is caught depends on claude-haiku-4-5, which this evaluation does not call."
     },
     {
-      "kind": "false alarm",
-      "id": "cur-inj-05-v03",
+      "kind": "escalated distress",
+      "id": "ds-2",
       "expected_miss": null,
-      "cause": "Resembles ordinary notes \u2014 nothing about the game to pull the score down",
-      "diagnosis": "An injection payload. Nothing implicates its words (\"severe\", \"notify_support\"), though the surrogate cannot see words that are rare in training, so it cannot rule them out either. 0% of its nearest training notes are distress; surrogate words: \"of\"."
+      "cause": "Escalated, not routed: the release-gate constraint closed the support band",
+      "diagnosis": "Scores 0.982 \u2014 ranked as distress, and would reach support under any cutoff below 0.9. It escalates because `high` is 1.000, so whether it is caught depends on claude-haiku-4-5, which this evaluation does not call."
     },
     {
-      "kind": "false alarm",
-      "id": "cur-inj-04-v06",
+      "kind": "escalated distress",
+      "id": "ds-10",
       "expected_miss": null,
-      "cause": "Resembles ordinary notes \u2014 nothing about the game to pull the score down",
-      "diagnosis": "A meta request with no game and no emotional content. 0% of its nearest training notes are distress; surrogate words: \"back\", \"and\", \"me\"."
+      "cause": "Escalated, not routed: the release-gate constraint closed the support band",
+      "diagnosis": "Scores 0.992 \u2014 ranked as distress, and would reach support under any cutoff below 0.9. It escalates because `high` is 1.000, so whether it is caught depends on claude-haiku-4-5, which this evaluation does not call."
     },
     {
-      "kind": "false alarm",
-      "id": "cur-non-05-v04",
+      "kind": "escalated distress",
+      "id": "ds-8",
       "expected_miss": null,
-      "cause": "Resembles ordinary notes \u2014 nothing about the game to pull the score down",
-      "diagnosis": "Someone testing whether the box works. 0% of its nearest training notes are distress; surrogate words: \"does\", \"work\", \"hello\"."
+      "cause": "Escalated, not routed: the release-gate constraint closed the support band",
+      "diagnosis": "Scores 0.993 \u2014 ranked as distress, and would reach support under any cutoff below 0.9. It escalates because `high` is 1.000, so whether it is caught depends on claude-haiku-4-5, which this evaluation does not call."
     },
     {
-      "kind": "false alarm",
-      "id": "cur-non-05-v05",
+      "kind": "escalated distress",
+      "id": "ds-5",
       "expected_miss": null,
-      "cause": "Resembles ordinary notes \u2014 nothing about the game to pull the score down",
-      "diagnosis": "Digits only; the surrogate has no words to attribute. 0% of its nearest training notes are distress; surrogate words: none it can see."
+      "cause": "Escalated, not routed: the release-gate constraint closed the support band",
+      "diagnosis": "Scores 0.999 \u2014 ranked as distress, and would reach support under any cutoff below 0.9. It escalates because `high` is 1.000, so whether it is caught depends on claude-haiku-4-5, which this evaluation does not call."
     },
     {
-      "kind": "false alarm",
-      "id": "cur-non-06-v01",
+      "kind": "escalated distress",
+      "id": "ds-6",
       "expected_miss": null,
-      "cause": "Resembles ordinary notes \u2014 nothing about the game to pull the score down",
-      "diagnosis": "An off-topic opinion. The death idiom is not among the words that move its score. 20% of its nearest training notes are distress; surrogate words: \"i\", \"and i\", \"does\"."
-    },
-    {
-      "kind": "false alarm",
-      "id": "non-2",
-      "expected_miss": null,
-      "cause": "Resembles ordinary notes \u2014 nothing about the game to pull the score down",
-      "diagnosis": "A golden case: a question meant for another app. \"tomorrow\" appears in distress training notes. 40% of its nearest training notes are distress; surrogate words: \"in\", \"tomorrow\"."
-    },
-    {
-      "kind": "false alarm",
-      "id": "cur-non-06-v05",
-      "expected_miss": null,
-      "cause": "Resembles ordinary notes \u2014 nothing about the game to pull the score down",
-      "diagnosis": "An everyday observation with no game words. 40% of its nearest training notes are distress; surrogate words: \"right\", \"when\"."
-    },
-    {
-      "kind": "false alarm",
-      "id": "cur-non-06-v02",
-      "expected_miss": null,
-      "cause": "Resembles ordinary notes \u2014 nothing about the game to pull the score down",
-      "diagnosis": "A shopping list; nothing in it is about the game or the player. 20% of its nearest training notes are distress; surrogate words: \"to\", \"and\", \"phone\"."
-    },
-    {
-      "kind": "false alarm",
-      "id": "cur-non-06-v04",
-      "expected_miss": null,
-      "cause": "Resembles ordinary notes \u2014 nothing about the game to pull the score down",
-      "diagnosis": "An everyday anecdote with no game words. 20% of its nearest training notes are distress; surrogate words: \"just\", \"glass\", \"no\"."
-    },
-    {
-      "kind": "false alarm",
-      "id": "cur-non-05-v03",
-      "expected_miss": null,
-      "cause": "Resembles ordinary notes \u2014 nothing about the game to pull the score down",
-      "diagnosis": "Someone testing whether the field saves. 20% of its nearest training notes are distress; surrogate words: \"to\", \"if\"."
-    },
-    {
-      "kind": "false alarm",
-      "id": "cur-gf-11",
-      "expected_miss": null,
-      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
-      "diagnosis": "Deleting the app; the first-person \"I'm\" carries the score. 0% of its nearest training notes are distress; surrogate words: \"i'm\", \"app\", \"then\"."
-    },
-    {
-      "kind": "false alarm",
-      "id": "cur-pair-13-game-v03",
-      "expected_miss": null,
-      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
-      "diagnosis": "\"no one\" about having nobody to tell; just over the cutoff. 0% of its nearest training notes are distress; surrogate words: \"to\", \"about\", \"no one\"."
-    },
-    {
-      "kind": "false alarm",
-      "id": "cur-pair-13-game-v02",
-      "expected_miss": null,
-      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
-      "diagnosis": "\"been\" and \"days\" \u2014 duration words about a level. 0% of its nearest training notes are distress; surrogate words: \"been\", \"to\", \"days\"."
-    },
-    {
-      "kind": "false alarm",
-      "id": "cur-pair-12-game-v04",
-      "expected_miss": null,
-      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
-      "diagnosis": "\"keep\" and \"anymore\" \u2014 ongoing-state words about a game. 20% of its nearest training notes are distress; surrogate words: \"keep\", \"anymore\", \"i\"."
-    },
-    {
-      "kind": "false alarm",
-      "id": "gf-7",
-      "expected_miss": null,
-      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
-      "diagnosis": "\"I'm so done\" \u2014 the first person carries the score, not \"done\". 20% of its nearest training notes are distress; surrogate words: \"i'm\", \"i'm so\", \"and\"."
-    },
-    {
-      "kind": "false alarm",
-      "id": "gf-9",
-      "expected_miss": null,
-      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
-      "diagnosis": "A cleared stage; the first person outweighs \"cleared\", not the anger words. 0% of its nearest training notes are distress; surrogate words: \"i\", \"like\", \"finally cleared\"."
-    },
-    {
-      "kind": "false alarm",
-      "id": "mix-2",
-      "expected_miss": null,
-      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
-      "diagnosis": "A game ending; \"I\" carries the score more than \"sad\". 0% of its nearest training notes are distress; surrogate words: \"i\", \"of\", \"kind of\"."
-    },
-    {
-      "kind": "false alarm",
-      "id": "cur-mf-02-v02",
-      "expected_miss": null,
-      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
-      "diagnosis": "\"feel\" and \"just\" in a note about a finished game. 0% of its nearest training notes are distress; surrogate words: \"feel\", \"just\", \"i\"."
-    },
-    {
-      "kind": "false alarm",
-      "id": "mix-6",
-      "expected_miss": null,
-      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
-      "diagnosis": "Weak attributions; \"my\" is the largest. Just over the cutoff. 20% of its nearest training notes are distress; surrogate words: \"is\", \"over\", \"my\"."
-    },
-    {
-      "kind": "false alarm",
-      "id": "mix-1",
-      "expected_miss": null,
-      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
-      "diagnosis": "\"exhausted\" outweighs \"happy\". 40% of its nearest training notes are distress; surrogate words: \"exhausted\"."
-    },
-    {
-      "kind": "false alarm",
-      "id": "nff-relieved",
-      "expected_miss": null,
-      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
-      "diagnosis": "A golden case; \"I\" and \"honestly\" carry the score, not \"never get past\". 0% of its nearest training notes are distress; surrogate words: \"i\", \"get\", \"honestly\"."
-    },
-    {
-      "kind": "false alarm",
-      "id": "cur-nf-05-v05",
-      "expected_miss": null,
-      "cause": "Resembles ordinary notes \u2014 personal or emotional words outweigh the game context",
-      "diagnosis": "Weak attributions; \"without\" is the largest. Positive in content. 0% of its nearest training notes are distress; surrogate words: \"without\", \"lives\", \"for\"."
+      "cause": "Escalated, not routed: the release-gate constraint closed the support band",
+      "diagnosis": "Scores 1.000 \u2014 ranked as distress, and would reach support under any cutoff below 0.9. It escalates because `high` is 1.000, so whether it is caught depends on claude-haiku-4-5, which this evaluation does not call."
     }
   ]
 }

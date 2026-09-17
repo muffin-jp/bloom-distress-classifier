@@ -53,7 +53,7 @@ from dc.model import DistressModel
 from dc.schema import Row
 from dc.serve import score_notes
 from dc.splits import Split, check_leakage, split_rows
-from dc.text import Segmentation
+from dc.text import ScopeRule, Segmentation
 
 __all__ = [
     "CascadeResult",
@@ -158,6 +158,7 @@ def score_test_split(
     thresholds: Thresholds,
     teacher_votes: Mapping[str, Sequence[int]],
     segmentation: Segmentation,
+    scope: ScopeRule,
 ) -> list[Prediction]:
     problems = check_leakage(list(rows), dict(assignment))
     if problems:
@@ -168,7 +169,7 @@ def score_test_split(
     # Scored through dc.serve, the same path the service uses, so the recorded
     # routes are the routes production would give these notes.
     scored = score_notes(
-        [row.free_text for row in test], model, embedder, segmentation=segmentation
+        [row.free_text for row in test], model, embedder, segmentation=segmentation, scope=scope
     )
     keyword = KeywordBaseline().predict_proba(test)
     return [
@@ -611,6 +612,17 @@ def render_markdown(
         "because a bootstrap over zero misses collapses to a zero-width interval that claims "
         "a certainty the sample does not have.",
         "",
+    ]
+    if r.thresholds.high >= 1.0:
+        lines += [
+            "> **`high` is 1.000, so the model alone decides nothing.** The support band is "
+            "closed by the release-gate constraint, and no score exceeds 1.0. The recall, "
+            "precision and F1 below are therefore 0 by definition rather than by failure — "
+            "they measure a route this artifact does not use. **PR-AUC is the row to read:** "
+            "it needs no threshold and says how well the model ranks.",
+            "",
+        ]
+    lines += [
         "| | PR-AUC | Recall | Precision | F1 | Missed |",
         "| --- | --- | --- | --- | --- | --- |",
         f"| **Model** | {r.model.pr_auc:.3f}{_ci(r.model.pr_auc_ci)} "
@@ -686,7 +698,14 @@ def render_markdown(
         "## Where the model's errors are",
         "",
         f"At `high` ({r.thresholds.high:.3f}), without the LLM. `R` is recall on a positive "
-        "category, `FP` the false-positive rate on a negative one.",
+        "category, `FP` the false-positive rate on a negative one."
+        + (
+            " With the support band closed every figure here is 0: nothing is routed on the "
+            "model's score alone, so this table says what the artifact does not do rather "
+            "than how well it separates categories."
+            if r.thresholds.high >= 1.0
+            else ""
+        ),
         "",
         "| Category | Rows | Result |",
         "| --- | --- | --- |",
@@ -915,6 +934,7 @@ def main() -> None:
         dataset_sha256,
         is_servable,
         load,
+        read_scope,
         read_segmentation,
         source_commit,
     )
@@ -974,6 +994,7 @@ def main() -> None:
         predictions = score_test_split(
             load_all_rows(), load_assignment(), artifact.model, load_embedder(), thresholds,
             load_teacher_votes(), read_segmentation(artifact.metadata),
+            read_scope(artifact.metadata),
         )  # fmt: skip
         # Recorded before the predictions are saved and before a single number is
         # computed or shown: a crash from here on is still a look.

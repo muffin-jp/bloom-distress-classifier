@@ -8,6 +8,15 @@
       "dataset_sha256": "a79700a0f570cfa47df73b607c85c59840ea5b2c4e042c5043c07f0257cd05ed",
       "evaluator_sha256": "3889b61dbeddb6561a2c99247e2c36af9fc9773fb43e6c8c920342469a56d415",
       "reason": "first look"
+    },
+    {
+      "number": 2,
+      "on": "2026-09-17",
+      "commit": "77fea951f62d6bd166d6f8209f5c21745df44bc3",
+      "artifact_sha256": "2de175fbaea1ec8e870bb06acfb2ae66eae55bacfb2af191f6287fed12c3e88e",
+      "dataset_sha256": "a79700a0f570cfa47df73b607c85c59840ea5b2c4e042c5043c07f0257cd05ed",
+      "evaluator_sha256": "992ed3da0b4dc1cc35f83e06308603b1c4778d3cbd1d3c644bcb8df9eded7a3d",
+      "reason": "segment-scored skip band, constrained low and high, scope rule; artifact 2de175fbaea1"
     }
   ],
   "renders": [
@@ -38,6 +47,20 @@
       "artifact_sha256": "5709c6e15ed3c90eb5528f2c7b852abeaa2db7bebbba88c9068a08826bece224",
       "evaluator_sha256": "c2f9d609cb60038e7cc13f3edb51e024a4c0b334df6f9a6213ff5ade8e9a455e",
       "note": "Docstring corrected: dc.explain --errors also reads saved test error texts (never scores or computes metrics)."
+    },
+    {
+      "on": "2026-09-17",
+      "predictions_sha256": "30cdf0fd17a9cea401f9bb0217ab2a771d9045c0c95d2654dbfb33ebdb4c1965",
+      "artifact_sha256": "2de175fbaea1ec8e870bb06acfb2ae66eae55bacfb2af191f6287fed12c3e88e",
+      "evaluator_sha256": "b1d22847047735500450c72a142c80565cfd99d8a6bc2eb3e9fe24f2c958c48f",
+      "note": "re-rendered from saved predictions"
+    },
+    {
+      "on": "2026-09-17",
+      "predictions_sha256": "30cdf0fd17a9cea401f9bb0217ab2a771d9045c0c95d2654dbfb33ebdb4c1965",
+      "artifact_sha256": "2de175fbaea1ec8e870bb06acfb2ae66eae55bacfb2af191f6287fed12c3e88e",
+      "evaluator_sha256": "b1d22847047735500450c72a142c80565cfd99d8a6bc2eb3e9fe24f2c958c48f",
+      "note": "Second look: rewrote the error analysis for artifact 2de175fbaea1 (the committed one described the superseded artifact's 27 support-band false alarms, which no longer exist), and flagged that model-alone metrics are 0 by definition when high is 1.000."
     }
   ]
 }

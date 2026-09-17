@@ -13,34 +13,33 @@ evaluation, explanations, and a [model card](MODEL_CARD.md).
 
 ## Results
 
-> **These describe the superseded artifact `5709c6e15ed3…`.** The current one, built after
-> red-teaming, routes differently and has **not** been scored on the test set. The model
-> weights are unchanged, so the PR-AUC and calibration figures carry over; every number that
-> depends on a route does not. See [the model card](MODEL_CARD.md).
-
-Scored **once** on a held-out test set of 191 notes, including the 44 cases that gate
-releases in the companion repo. The look is recorded in `reports/test_ledger.json`.
+Scored on a held-out test set of 191 notes, including the 44 cases that gate releases in the
+companion repo. Two looks, both recorded in `reports/test_ledger.json`; look 2 measures the
+current artifact.
 
 | | Result | Holds at 95%? |
 | --- | --- | --- |
 | Model PR-AUC (target ≥ 0.90) | **0.953** — cross-validation said 0.960 | no — the interval reaches 0.87 |
 | Crisis-keyword rule PR-AUC | 0.368 | the model beats it: yes |
-| Distress cases missed | **0 of 52** | recall is at least 0.944 |
-| Golden release-gate cases | 10 of 10 routed to support, without the LLM | a gate, not an estimate |
-| LLM calls needed under the cascade | **32%** of notes | — |
-| Non-distress notes sent to support | 27 of 139 (19%) | — |
+| Distress cases that skipped the LLM | **0 of 52** | recall at least 0.931 |
+| Non-distress notes sent to support | **0 of 139** | closed by construction |
+| Cascade recall vs the LLM alone | 1.000 vs 1.000 | identical, on these rows |
+| LLM calls needed under the cascade | **86%** of notes | — |
 
-**What that means.** The model generalises to confusion modes it never trained on and missed no
-distress case. About two notes in three would need no LLM call: 26% skip it, and 41% go
-straight to the support message. The cost is false alarms: about one in
-five ordinary notes would get the support message. That rate follows from a deliberately low
-support cutoff, which a product decision set; it is not a flaw in how the model ranks notes.
+**What that means, stated plainly.** This component removes 14% of LLM calls and changes
+nothing else. It adds no catches and no false alarms, because every note it does not skip goes
+to the LLM exactly as today. The model ranks well — 0.953 PR-AUC on confusion modes it never
+trained on — but the release gate in the companion repo forbids routing any non-distress note
+to support, and that constraint closes the support band entirely.
 
 ![Precision–recall on the test set](reports/plots/pr_curve.svg)
 
-**And then red-teaming broke it.** Of 72 distress notes written to evade the skip band,
-13 skipped the LLM entirely. That is fixed in the current artifact, which changed both
-thresholds — see below.
+**What it cost to get there.** An earlier artifact used the whole-note score for both bands. It
+sent 27 of 139 ordinary notes to support and routed all 10 golden distress cases there without
+the LLM — a guarantee that held whatever the LLM said. It also failed red-teaming: 13 of 72
+distress notes written to evade the skip band got through. The current artifact fixes both, and
+loses that golden guarantee in exchange: all 10 now escalate, so their recall depends on a call
+this evaluation does not make.
 
 ## How it works
 
@@ -172,6 +171,7 @@ make baselines              # baselines 0-4, cross-validated on train
 make train                  # select, fit thresholds, write artifacts/ and reports/
 make explain NOTE="..."     # explain one note
 make redteam                # attack the skip band; non-zero exit if a note skips
+make export-routes          # freeze this artifact's routes for bloom-langgraph to check
 make explain-errors         # explain the test set's recorded errors
 make evaluate-render        # re-render the test report from saved predictions
 ```
@@ -220,5 +220,6 @@ data/  artifacts/  reports/       committed; the audit surface
 | 6 | One test-set evaluation | ✅ |
 | 7 | Explanations and model card | ✅ |
 | 8 | Integration into `bloom-langgraph` | ✅ merged dark — the flag is still off |
+| — | Segment scoring and the scope rule served downstream, with a parity test | ✅ 91 frozen routes reproduced |
 | — | Red-team the skip band | ✅ 13 of 72 notes skipped; segment scoring and a constrained `low` take it to 0 |
-| — | Second test look for the new artifact | ⬜ not taken |
+| — | Second test look for the new artifact | ✅ 0 skipped, 0 to support, recall unchanged |

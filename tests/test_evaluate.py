@@ -32,7 +32,7 @@ from dc.features import EMBED_MODEL, EMBED_MODEL_REVISION
 from dc.model import DistressModel, FeatureLayout
 from dc.schema import Category, Provenance, Row
 from dc.splits import build_assignment
-from dc.text import SEGMENTATION
+from dc.text import SCOPE, SEGMENTATION
 
 REPO = Path(__file__).resolve().parents[1]
 BANDS = Thresholds(low=0.1, high=0.8)
@@ -112,7 +112,7 @@ def test_scoring_reads_only_test_rows() -> None:
     layout = FeatureLayout(EMBED_MODEL, EMBED_MODEL_REVISION, 2, False)
     model = DistressModel(coef=np.array([6.0, 0.0]), intercept=-3.0, layout=layout)
 
-    predictions = score_test_split(rows, assignment, model, spy, BANDS, {}, SEGMENTATION)
+    predictions = score_test_split(rows, assignment, model, spy, BANDS, {}, SEGMENTATION, SCOPE)
 
     test_texts = {r.free_text for r in rows if assignment[r.id] == "test"}
     train_texts = {r.free_text for r in rows if assignment[r.id] == "train"}
@@ -131,7 +131,7 @@ def test_scoring_refuses_an_unsound_split() -> None:
     layout = FeatureLayout(EMBED_MODEL, EMBED_MODEL_REVISION, 2, False)
     model = DistressModel(coef=np.zeros(2), intercept=0.0, layout=layout)
     with pytest.raises(ValueError, match="unsound"):
-        score_test_split(rows, assignment, model, SpyEmbedder(), BANDS, {}, SEGMENTATION)
+        score_test_split(rows, assignment, model, SpyEmbedder(), BANDS, {}, SEGMENTATION, SCOPE)
 
 
 def test_only_the_evaluator_ever_asks_for_test_rows() -> None:
@@ -347,7 +347,7 @@ def test_a_diluted_test_note_escalates_rather_than_skipping() -> None:
     bands = Thresholds(low=0.05, high=0.95)
 
     predictions = score_test_split(rows, assignment, model, ClauseEmbedder(), bands, {},
-                                   SEGMENTATION)  # fmt: skip
+                                   SEGMENTATION, SCOPE)  # fmt: skip
     note = next(p for p in predictions if p.id == "dilute")
 
     assert note.score < bands.low  # the whole note looks safe
