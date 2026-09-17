@@ -10,6 +10,7 @@ import numpy as np
 import pytest
 
 from dc.cascade import (
+    LOW_MARGIN,
     CostModel,
     Route,
     Thresholds,
@@ -413,3 +414,64 @@ def test_every_candidate_cutoff_is_at_or_above_low() -> None:
     assert np.all(curve.candidates >= low)
     for candidate in curve.candidates:
         Thresholds(low, float(candidate))  # raises if a candidate is not a usable `high`
+
+
+# --- the adversarial probe constrains low ----------------------------------------------
+
+
+def test_the_probe_lowers_low_when_it_scores_below_the_labelled_rows() -> None:
+    y, scores, worst, _, ids = segmented()
+    votes = [[1] if label else [0] for label in y]
+    lowest_positive = float(worst[y == 1].min())
+    probe = [("attack-1", lowest_positive / 4, "diluted crisis clause")]
+
+    fit = fit_cascade(
+        y, scores, votes, ids=ids, texts=ids, skip_scores=worst, segmentation=SEGMENTATION,
+        adversarial=probe, adversarial_label="probe",
+    )  # fmt: skip
+
+    assert fit.low.adversarial is not None
+    assert fit.low.adversarial.binding
+    assert fit.thresholds.low == pytest.approx(LOW_MARGIN * lowest_positive / 4)
+
+
+def test_no_probe_note_can_skip_after_the_fit() -> None:
+    """The guarantee the constraint exists to provide, which is also what it costs."""
+    for seed in range(5):
+        y, scores, worst, _, ids = segmented(seed)
+        votes = [[1] if label else [0] for label in y]
+        probe = [(f"a{i}", 0.02 * (i + 1), f"attack {i}") for i in range(6)]
+        fit = fit_cascade(
+            y, scores, votes, ids=ids, texts=ids, skip_scores=worst, segmentation=SEGMENTATION,
+            adversarial=probe,
+        )  # fmt: skip
+        assert all(score >= fit.thresholds.low for _, score, _ in probe)
+
+
+def test_a_probe_that_scores_above_the_labelled_rows_does_not_move_low() -> None:
+    y, scores, worst, _, ids = segmented()
+    votes = [[1] if label else [0] for label in y]
+    unconstrained = fit_cascade(
+        y, scores, votes, ids=ids, texts=ids, skip_scores=worst, segmentation=SEGMENTATION
+    )
+    fit = fit_cascade(
+        y, scores, votes, ids=ids, texts=ids, skip_scores=worst, segmentation=SEGMENTATION,
+        adversarial=[("attack-1", 0.99, "obvious crisis")],
+    )  # fmt: skip
+
+    assert fit.thresholds.low == pytest.approx(unconstrained.thresholds.low)
+    assert fit.low.adversarial is not None and not fit.low.adversarial.binding
+
+
+def test_the_fit_names_the_probe_note_that_set_low() -> None:
+    y, scores, worst, _, ids = segmented()
+    votes = [[1] if label else [0] for label in y]
+    probe = [("loud", 0.9, "obvious"), ("quiet", 0.004, "the one that nearly got through")]
+    fit = fit_cascade(
+        y, scores, votes, ids=ids, texts=ids, skip_scores=worst, segmentation=SEGMENTATION,
+        adversarial=probe,
+    )  # fmt: skip
+
+    assert fit.low.adversarial is not None
+    assert fit.low.adversarial.set_by == "quiet"
+    assert fit.low.adversarial.lowest == pytest.approx(0.004)

@@ -73,13 +73,15 @@ from enum import StrEnum
 import numpy as np
 
 from dc.metrics import FloatArrayLike, IntArrayLike
-from dc.text import Segmentation
+from dc.text import ScopeRule, Segmentation
 
 __all__ = [
     "COST_MODEL",
     "DEFAULT_MARGINS",
     "LOW_MARGIN",
     "RATIO_GRID",
+    "TOLERANCE",
+    "AdversarialFloor",
     "CascadeFit",
     "Constraint",
     "CostCurve",
@@ -132,6 +134,13 @@ LOW_MARGIN = 0.5
 #: are then solved exactly, so the grid only has to be fine enough to visit each.
 RATIO_GRID = np.geomspace(0.01, 1000.0, 2000)
 DEFAULT_MARGINS: tuple[float, ...] = (1.0, 0.5, 0.25)
+#: How far a worst-segment score may fall below its whole-note score before the
+#: two arrays are treated as swapped rather than noisy. Embeddings are float32,
+#: and the same note scored inside a batch of notes and inside a batch of segments
+#: sums in a different order, which moves the last bit: measured at 1.2e-7 over the
+#: training rows. A genuine swap moves scores by 0.1 or more, so this separates the
+#: two by six orders of magnitude.
+TOLERANCE = 1e-6
 
 
 @dataclass(frozen=True)
@@ -242,12 +251,14 @@ def skip_statistic(scores: FloatArrayLike, skip_scores: FloatArrayLike | None) -
     if worst.shape != whole.shape:
         raise ValueError("skip scores and scores differ in length")
     comparable = np.isfinite(worst) & np.isfinite(whole)
-    if np.any(worst[comparable] < whole[comparable] - 1e-9):
+    if np.any(worst[comparable] < whole[comparable] - TOLERANCE):
         raise ValueError(
             "a skip score is below its whole-note score, which is impossible when the "
             "whole note is one of the segments. Are the two arrays swapped?"
         )
-    return worst
+    # Within tolerance the shortfall is float32 noise, not a different answer, so the
+    # definition is restored rather than carried forward a fraction of an epsilon out.
+    return np.maximum(worst, whole)
 
 
 def teacher_probabilities(votes: Sequence[Sequence[int]]) -> np.ndarray:
@@ -304,6 +315,32 @@ def simulate(
 
 
 @dataclass(frozen=True)
+class AdversarialFloor:
+    """Notes written to evade the skip band, and the ceiling they put on ``low``.
+
+    The mirror image of :class:`Constraint`. That one forbids rows from reaching
+    support and so raises a floor under ``high``; this one forbids notes from
+    skipping and so lowers a ceiling onto ``low``. Both are product rules applied
+    before any fitted number, not prices traded against one.
+
+    Applying it has a cost worth stating plainly: after this, ``make redteam``
+    passes **by construction**, exactly as the release-gate constraint makes its
+    own check pass by construction. The probe stops being evidence about this
+    artifact and becomes a guarantee about it. Only notes written *after* this fit
+    can test the skip band again.
+    """
+
+    label: str
+    n: int
+    #: Lowest worst-segment score in the probe set, scored by the shipped model.
+    lowest: float
+    set_by: str
+    set_by_text: str
+    #: Whether the probe, rather than the labelled distress rows, decided ``low``.
+    binding: bool
+
+
+@dataclass(frozen=True)
 class LowFit:
     threshold: float
     margin: float
@@ -312,6 +349,8 @@ class LowFit:
     #: that decided ``low``, and the first ones a reviewer should re-read.
     nearest_positives: tuple[tuple[str, float, str], ...]
     n_positive: int
+    #: The adversarial probe, if one constrained the fit.
+    adversarial: AdversarialFloor | None = None
 
     @property
     def miss_upper_bound(self) -> float:
@@ -327,7 +366,16 @@ def fit_low(
     texts: Sequence[str],
     margin: float = LOW_MARGIN,
     n_nearest: int = 5,
+    adversarial: Sequence[tuple[str, float, str]] = (),
+    adversarial_label: str = "",
 ) -> LowFit:
+    """``low`` = ``margin`` x the lowest score any note that must not skip received.
+
+    Two kinds of note must not skip: the labelled distress rows, scored out of
+    fold, and — when given — the adversarial probe, scored by the shipped model.
+    The lower of the two decides, because a rule that only holds for one of them
+    does not hold. ``adversarial`` is ``(id, worst-segment score, text)`` per note.
+    """
     if not 0.0 < margin <= 1.0:
         raise ValueError(f"margin must be in (0, 1], got {margin}")
     truth = np.asarray(y, dtype=int)
@@ -339,14 +387,29 @@ def fit_low(
         raise ValueError("no scored positives to fit the skip band against")
     order = positive_index[np.argsort(p[positive_index], kind="stable")]
     lowest = float(p[order[0]])
+
+    floor: AdversarialFloor | None = None
+    base = lowest
+    if adversarial:
+        probe_id, probe_score, probe_text = min(adversarial, key=lambda row: row[1])
+        base = min(lowest, probe_score)
+        floor = AdversarialFloor(
+            label=adversarial_label or "notes written to evade the skip band",
+            n=len(adversarial),
+            lowest=probe_score,
+            set_by=probe_id,
+            set_by_text=probe_text,
+            binding=probe_score < lowest,
+        )
     return LowFit(
-        threshold=margin * lowest,
+        threshold=margin * base,
         margin=margin,
         lowest_positive_score=lowest,
         nearest_positives=tuple(
             (ids[int(i)], float(p[int(i)]), texts[int(i)]) for i in order[:n_nearest]
         ),
         n_positive=int(positive_index.size),
+        adversarial=floor,
     )
 
 
@@ -586,6 +649,9 @@ class CascadeFit:
     #: reaches the artifact from the same call that fitted the threshold, rather
     #: than being supplied again, correctly, by a second caller.
     segmentation: Segmentation | None
+    #: Which notes the model declines to judge at all. Recorded with the fit for
+    #: the same reason as the segmentation: the service must apply the same rule.
+    scope: ScopeRule | None
     chosen_segment: int
     #: The operating point one step more conservative than the chosen one, if any.
     alternative: Segment | None
@@ -607,6 +673,9 @@ def fit_cascade(
     forbidden_label: str = "",
     skip_scores: FloatArrayLike | None = None,
     segmentation: Segmentation | None = None,
+    scope: ScopeRule | None = None,
+    adversarial: Sequence[tuple[str, float, str]] = (),
+    adversarial_label: str = "",
 ) -> CascadeFit:
     if (skip_scores is None) != (segmentation is None):
         raise ValueError(
@@ -618,7 +687,10 @@ def fit_cascade(
     # `low` is fitted on the statistic the skip band compares, not on the
     # whole-note score. See the module docstring.
     worst = skip_statistic(scores, skip_scores)
-    low_fit = fit_low(y, worst, ids=ids, texts=texts, margin=margin)
+    low_fit = fit_low(
+        y, worst, ids=ids, texts=texts, margin=margin,
+        adversarial=adversarial, adversarial_label=adversarial_label,
+    )  # fmt: skip
 
     constraint: Constraint | None = None
     floor = 0.0
@@ -661,7 +733,9 @@ def fit_cascade(
 
     by_margin: list[MarginRow] = []
     for m in margins:
-        m_low = fit_low(y, worst, ids=ids, texts=texts, margin=m).threshold
+        m_low = fit_low(
+            y, worst, ids=ids, texts=texts, margin=m, adversarial=adversarial
+        ).threshold  # fmt: skip
         outcome = simulate(
             y, scores, q, Thresholds(m_low, max(m_low, thresholds.high)),
             costs=costs, skip_scores=worst,
@@ -686,6 +760,7 @@ def fit_cascade(
         envelope=segments,
         constraint=constraint,
         segmentation=segmentation,
+        scope=scope,
         chosen_segment=chosen,
         alternative=alternative,
         decisive=decisive,

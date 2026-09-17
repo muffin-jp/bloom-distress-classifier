@@ -30,10 +30,21 @@ answer.
 from __future__ import annotations
 
 import re
+import unicodedata
 from dataclasses import dataclass
 from functools import cached_property
 
-__all__ = ["BOUNDARY", "SEGMENTATION", "STRIDE", "WINDOW", "Segmentation", "split_segments"]
+__all__ = [
+    "BOUNDARY",
+    "SCOPE",
+    "SEGMENTATION",
+    "STRIDE",
+    "WINDOW",
+    "ScopeRule",
+    "Segmentation",
+    "has_non_latin_letters",
+    "split_segments",
+]
 
 WINDOW = 8
 STRIDE = 4
@@ -104,3 +115,45 @@ SEGMENTATION = Segmentation()
 def split_segments(text: str, *, window: int = WINDOW, stride: int = STRIDE) -> list[str]:
     """:meth:`Segmentation.split` at the fitted parameters, or overrides of them."""
     return Segmentation(window=window, stride=stride).split(text)
+
+
+def has_non_latin_letters(text: str) -> bool:
+    """True if any *letter* in the note belongs to a script other than Latin.
+
+    Only letters are examined, so emoji, digits, curly quotes, em dashes and other
+    punctuation never trigger it — an ordinary English note typed on a phone must
+    not be treated as foreign. ``café`` and ``naïve`` are Latin and stay in scope.
+    """
+    return any(
+        character.isalpha() and not unicodedata.name(character, "").startswith("LATIN")
+        for character in text
+    )
+
+
+@dataclass(frozen=True)
+class ScopeRule:
+    """Notes the model has no basis to judge, which escalate whatever they score.
+
+    ``all-MiniLM-L6-v2`` is an English model. On a Japanese, Korean or Russian note
+    it still returns a confident-looking number, and that number means nothing:
+    *"もう生きていたくない"* — "I don't want to live any more" — scores 0.05, which
+    is low because the model cannot read it, not because the note is calm. A low
+    score from a model that cannot read the input is the one input the skip band
+    must never act on, so these notes go to the LLM whatever they score.
+
+    This is a scope rule, not a language feature. It does not try to classify
+    non-English distress; it declines to.
+    """
+
+    escalate_non_latin_letters: bool = True
+
+    def out_of_scope(self, text: str) -> str:
+        """Why this note may not be judged locally, or ``""`` if it may."""
+        if self.escalate_non_latin_letters and has_non_latin_letters(text):
+            return "non-Latin script: the embedder is English-only"
+        return ""
+
+
+#: The shipped scope rule. Like the segmentation, it travels with the artifact so
+#: the service cannot apply a different one.
+SCOPE = ScopeRule()

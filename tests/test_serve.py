@@ -20,7 +20,7 @@ from dc.cascade import Route, Thresholds, route_note, skip_statistic
 from dc.features import EMBED_MODEL, EMBED_MODEL_REVISION
 from dc.model import DistressModel, FeatureLayout
 from dc.serve import flatten_segments, score_notes, segment_scores
-from dc.text import SEGMENTATION, Segmentation, split_segments
+from dc.text import SEGMENTATION, ScopeRule, Segmentation, split_segments
 
 BANDS = Thresholds(low=0.1, high=0.8)
 
@@ -205,3 +205,66 @@ def test_scoring_no_notes_calls_nothing() -> None:
     embedder = WordEmbedder()
     assert score_notes([], model(), embedder) == []
     assert embedder.calls == 0
+
+
+def test_float32_noise_is_tolerated_but_a_real_swap_is_not() -> None:
+    """The same note embedded among notes and among segments differs in the last bit.
+
+    Measured at 1.2e-7 over the training rows, because embeddings are float32 and
+    the two batches sum in a different order. A swapped pair of arrays moves scores
+    by 0.1 or more, so noise is absorbed and a swap still raises.
+    """
+    whole = np.array([0.5, 0.9, 0.3])
+    noisy = whole - 1.2e-7
+    assert np.array_equal(skip_statistic(whole, noisy), whole)  # restored to the definition
+
+    with pytest.raises(ValueError, match="swapped"):
+        skip_statistic(whole, whole - 0.01)
+
+
+# --- the scope rule --------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "もう生きていたくない",
+        "나 이제 못 버티겠어",
+        "больше не могу",
+        "stage 12 done. 다 끝내고 싶어",
+    ],
+)
+def test_a_note_in_a_non_latin_script_escalates(text: str) -> None:
+    """A low score from a model that cannot read the input is not evidence of anything."""
+    [scored] = score_notes([text], model(), WordEmbedder())
+    assert scored.out_of_scope
+    assert scored.route(BANDS) is Route.ESCALATE
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["café au lait", "don't — really… 😊", "naïve but fine", "ich will nicht mehr leben", "ok 123"],
+)
+def test_latin_script_notes_stay_in_scope(text: str) -> None:
+    """Accents, emoji and curly punctuation are not foreign scripts.
+
+    German is Latin script and so stays in scope: the rule declines text the
+    embedder cannot read, and it cannot tell that it reads German badly.
+    """
+    [scored] = score_notes([text], model(), WordEmbedder())
+    assert not scored.out_of_scope
+
+
+def test_the_scope_rule_outranks_a_skippable_score() -> None:
+    rule = ScopeRule()
+    assert rule.out_of_scope("もう生きていたくない")
+    assert route_note(0.001, 0.001, BANDS) is Route.SKIP_LLM  # the score alone would skip
+    [scored] = score_notes(["もう生きていたくない"], model(), WordEmbedder())
+    assert scored.route(BANDS) is Route.ESCALATE
+
+
+def test_the_scope_rule_can_be_turned_off_explicitly() -> None:
+    """It is a recorded parameter, not a hard-coded behaviour, so it is testable both ways."""
+    off = ScopeRule(escalate_non_latin_letters=False)
+    [scored] = score_notes(["もう生きていたくない"], model(), WordEmbedder(), scope=off)
+    assert not scored.out_of_scope

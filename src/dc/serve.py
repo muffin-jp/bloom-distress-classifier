@@ -27,14 +27,14 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import numpy as np
 
 from dc.cascade import Route, Thresholds, route_note
 from dc.features import Embedder
 from dc.model import DistressModel
-from dc.text import SEGMENTATION, Segmentation
+from dc.text import SCOPE, SEGMENTATION, ScopeRule, Segmentation
 
 __all__ = ["NoteScore", "flatten_segments", "score_notes", "segment_scores"]
 
@@ -51,8 +51,15 @@ class NoteScore:
     #: The segment that scored ``worst`` — what to show a reviewer asking why.
     worst_segment: str
     n_segments: int
+    #: Why the model may not judge this note at all, or ``""``. See
+    #: :class:`dc.text.ScopeRule`.
+    out_of_scope: str = ""
 
     def route(self, thresholds: Thresholds) -> Route:
+        # Out of scope outranks the scores: a number from a model that cannot read
+        # the input is not evidence, least of all evidence that it is safe to skip.
+        if self.out_of_scope:
+            return Route.ESCALATE
         return route_note(self.whole, self.worst, thresholds)
 
     @property
@@ -100,17 +107,23 @@ def score_notes(
     embedder: Embedder,
     *,
     segmentation: Segmentation = SEGMENTATION,
+    scope: ScopeRule = SCOPE,
 ) -> list[NoteScore]:
-    """Whole-note and worst-segment scores for each note, in one batch."""
+    """Whole-note and worst-segment scores for each note, in one batch.
+
+    Out-of-scope notes are still scored, because the report and the red-team probe
+    need the number to show what would have happened; it just cannot route them.
+    """
     per_note = [segmentation.split(note) for note in notes]
     flat = [segment for segments in per_note for segment in segments]
     scores = segment_scores(flat, model, embedder)
 
     out: list[NoteScore] = []
     cursor = 0
-    for segments in per_note:
+    for note, segments in zip(notes, per_note, strict=True):
+        reason = scope.out_of_scope(note)
         if not segments:
-            out.append(_UNSCORABLE)
+            out.append(replace(_UNSCORABLE, out_of_scope=reason))
             continue
         window = scores[cursor : cursor + len(segments)]
         cursor += len(segments)
@@ -121,6 +134,7 @@ def score_notes(
                 worst=float(window[worst]),
                 worst_segment=segments[worst],
                 n_segments=len(segments),
+                out_of_scope=reason,
             )
         )
     return out
