@@ -19,7 +19,7 @@ reviewed support message.
 | Decision | Skip the LLM when every segment of the note scores below **0.0161**; go straight to support when the whole note scores above **1.000** — which never happens, so the support band is closed; the LLM decides everything else. A note in a non-Latin script always escalates |
 | Test set | Scored 2 times — look 2, on 2026-09-17, measures this artifact; look 1 measured the superseded `5709c6e15ed3…`. The report has been re-rendered 6 times from saved predictions. Every look and render is in `reports/test_ledger.json` |
 | Owner | U.V, muffin Inc. |
-| Status | **Evaluated and gate-clean; the flag is still off.** No held-out distress case skipped the LLM, nothing reached support, and `bloom-langgraph`'s release gate passes with the flag on. What it buys is 14% fewer LLM calls and nothing else — including no golden-case guarantee, which the previous artifact had. Latency is unmeasured |
+| Status | **Evaluated and gate-clean; the flag is still off.** No held-out distress case skipped the LLM, nothing reached support, and `bloom-langgraph`'s release gate passes with the flag on. What it buys is 14% fewer LLM calls and nothing else — including no golden-case guarantee, which the previous artifact had. Local scoring costs 5.7 ms at p50 against a 784 ms LLM call |
 
 ## Intended use
 
@@ -100,7 +100,7 @@ because a bootstrap interval collapses to a single point there.
 
 | Target | Test result | Holds at 95%? |
 | --- | --- | --- |
-| Golden distress cases caught | 10 of 10, to support without the LLM | — a release gate, not an estimate; 10 of 10 is consistent with recall as low as 0.741 |
+| Golden distress cases caught | 0 to support, 10 escalate — this evaluation cannot say | — the LLM was not called here. `bloom-langgraph`'s gate run then caught 10 of 10, which is consistent with a per-case rate as low as 0.741 |
 | Cascade recall ≥ 0.98 | 1.000 over 42 distress cases | **No** — the lower bound is 0.931 |
 | Model PR-AUC ≥ 0.90 | 0.953 | **No** — the interval reaches 0.87 |
 | Beats the crisis-keyword rule | 0.953 vs 0.368 | Yes — the intervals do not overlap |
@@ -339,10 +339,30 @@ revisions, and `tests/test_embedder_parity.py` re-checks the files whenever both
 3. **Re-read `cur-pair-17-life-v03`.** It is labelled `normal-feeling` while its six family
    siblings are `distress`, and it alone sets the floor that closes the support band. Judge it
    on the note, not on what it unlocks.
-4. **Decide whether 14% fewer LLM calls is worth it.** That is what this component now buys:
-   no added catches, no added false alarms, one more thing to keep in sync across two repos,
-   and roughly ten embeddings per note instead of one. `make bench` has not been re-run since
-   segmentation landed.
+4. **Decide whether 14% fewer LLM calls is worth it.** That is the whole of what this
+   component now buys: no added catches, no added false alarms, and two rules to keep in sync
+   across two repositories. Latency says the machinery itself is not the objection
+   ([`reports/latency.md`](reports/latency.md), measured 2026-09-17):
+
+   | Path | p50 | p95 | Mean |
+   | --- | --- | --- | --- |
+   | Local, as shipped | 5.7 ms | 16.1 ms | 7.3 ms |
+   | Local, whole note only | 4.7 ms | 5.2 ms | 4.9 ms |
+   | `claude-haiku-4-5` call | 784 ms | 1343 ms | 902 ms |
+
+   A note becomes **3.1 texts**, not the ten the window and stride suggest — free text is capped
+   at 200 characters, so the sliding window rarely engages. Segmentation costs **+1.0 ms**, which
+   is 0.1% of the call it protects. Expected mean per note falls from 902 ms to **778 ms**.
+
+   Three caveats before that reads as a 14% win:
+
+   - **It is 14% of the classify step, not of what a player waits for.** Notes routed to
+     encouragement still pay a `claude-sonnet-5` generation afterwards, which is not measured
+     here and is the larger term. End-to-end the saving is materially smaller.
+   - **The tail barely moves.** 86% of notes still escalate, so p95 is still the LLM's p95. The
+     win is mean latency and call volume, not the slow requests.
+   - **Segment scoring roughly triples the local tail** — p95 6.5 → 16.1 ms, because batch size
+     now varies per note. Negligible against 1343 ms, but it is a real change in shape.
 5. Collect for the next version: dilution examples (game talk followed by a real disclosure),
    game notes in first-person ongoing-state language, ordinary off-topic sentences, and a second
    reviewer, so agreement can be measured.
