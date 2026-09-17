@@ -4,7 +4,7 @@ A 385-weight classifier that sits in front of an LLM safety check and decides, f
 free-text note a player writes, whether that check is needed at all.
 
 It was built to replace most calls to the `claude-haiku-4-5` distress classifier in Bloom's
-*Guided Encouragement* feature ([`bloom-langgraph`](../bloom-langgraph)), and it covers the
+*Guided Encouragement* feature ([`bloom-langgraph`](https://github.com/muffin-jp/guided-encouragement-langgraph)), and it covers the
 whole lifecycle: dataset, baselines, training, a cost-based cascade, a single test-set
 evaluation, explanations, and a [model card](MODEL_CARD.md).
 
